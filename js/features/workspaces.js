@@ -163,6 +163,51 @@ function renderExplorer(wsId) {
                     showToast("Senha incorreta");
                 }
             };
+        } else if (file.type === 'file') {
+            // Open File Logic
+            row.ondblclick = async () => {
+                let content = '';
+
+                // If it's a local file, read from disk
+                if (file.handle) {
+                    try {
+                        const fileData = await file.handle.getFile();
+                        content = await fileData.text();
+                    } catch (e) {
+                        console.error(e);
+                        showToast('Erro ao ler arquivo local');
+                        return;
+                    }
+                } else {
+                    // Mock content for virtual files
+                    const existingNote = notes.find(n => n.title === file.name.replace(/\.[^/.]+$/, ""));
+                    content = existingNote ? existingNote.content : `# ${file.name}\n\nConteúdo do arquivo...`;
+                }
+
+                // Create a temporary note object for the editor
+                // Check if already open/exists in notes
+                let noteId = file.id; // Use file ID as note ID for simplicity in this context
+                let existingNoteIndex = notes.findIndex(n => n.id === noteId);
+
+                if (existingNoteIndex === -1) {
+                    // Create transient note
+                    notes.push({
+                        id: noteId,
+                        title: file.name,
+                        content: content,
+                        category: 'Trabalho',
+                        date: new Date().toISOString(),
+                        fileHandle: file.handle, // Attach handle
+                        location: { workspaceId: wsId, folderId: null } // Root of ws
+                    });
+                } else {
+                    // Update existing
+                    notes[existingNoteIndex].content = content;
+                    notes[existingNoteIndex].fileHandle = file.handle;
+                }
+
+                openPreview(noteId);
+            };
         }
         list.appendChild(row);
     });

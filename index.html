@@ -222,6 +222,12 @@
                             data-lucide="columns" class="w-3.5 h-3.5"></i> Split</button>
                 </div>
                 <div class="flex items-center gap-2">
+                    <button onclick="LocationPicker.open()" title="Selecionar Local" id="btn-location-picker"
+                        class="px-2 py-1.5 text-zinc-400 hover:text-blue-400 hover:bg-zinc-800 rounded-md transition-colors flex items-center gap-2 text-xs border border-transparent hover:border-zinc-700">
+                        <i data-lucide="folder-output" class="w-3.5 h-3.5"></i> <span id="current-location-label"
+                            class="hidden sm:inline">Sem local</span>
+                    </button>
+                    <div class="w-px h-4 bg-zinc-800 mx-1"></div>
                     <button onclick="saveCurrentNote()"
                         class="p-2 text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 rounded-md transition-colors"><i
                             data-lucide="save" class="w-4 h-4"></i></button>
@@ -655,6 +661,7 @@
 
     <!-- Modules -->
     <script src="js/core/state.js"></script>
+    <script src="js/core/fs_handler.js"></script>
     <script src="js/utils/helpers.js"></script>
 
     <!-- Independent Features -->
@@ -669,9 +676,43 @@
     <script src="js/features/canvas.js"></script>
     <script src="js/features/workspaces.js"></script>
     <script src="js/features/settings.js"></script>
+    <script src="js/features/location_picker.js"></script>
 
     <!-- Main Entry Point -->
     <script src="js/main.js"></script>
+    <!-- Location Picker Modal -->
+    <div id="location-picker-modal"
+        class="fixed inset-0 bg-black/80 z-[80] hidden items-center justify-center backdrop-blur-sm animate__animated animate__fadeIn animate__faster">
+        <div
+            class="glass p-6 rounded-xl w-full max-w-lg border border-zinc-700 shadow-2xl animate__animated animate__zoomIn animate__faster">
+            <h3 class="text-lg font-bold text-zinc-100 mb-1">Selecionar Local</h3>
+            <p class="text-xs text-zinc-500 mb-4">Escolha onde salvar esta nota.</p>
+
+            <!-- Workspace List -->
+            <div class="mb-4">
+                <label class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-2 block">Workspace</label>
+                <div id="lp-workspace-list" class="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                    <!-- Injected via JS -->
+                </div>
+            </div>
+
+            <!-- Folder List -->
+            <div class="mb-6">
+                <label class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-2 block">Pasta</label>
+                <div id="lp-folder-list" class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar p-1">
+                    <!-- Injected via JS -->
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 border-t border-zinc-800 pt-4">
+                <button onclick="LocationPicker.close()"
+                    class="px-3 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-md transition-colors">Cancelar</button>
+                <button onclick="LocationPicker.confirm()"
+                    class="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-xs font-semibold shadow-lg shadow-blue-900/20 transition-all">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>

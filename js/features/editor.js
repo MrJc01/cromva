@@ -74,6 +74,22 @@ function openPreview(id) {
     setEditorMode('preview');
     document.getElementById('preview-modal').classList.remove('hidden');
     document.getElementById('preview-modal').classList.add('flex');
+
+    // Location Logic
+    const label = document.getElementById('current-location-label');
+    if (label) {
+        if (note.location) {
+            const ws = workspaces.find(w => w.id === note.location.workspaceId);
+            const folder = note.location.folderId
+                ? (workspaceFiles[note.location.workspaceId] || []).find(f => f.id === note.location.folderId)
+                : { name: '/' };
+            if (ws) label.innerText = `${ws.name} > ${folder ? folder.name : 'Unknown'}`;
+            else label.innerText = 'Sem local';
+        } else {
+            label.innerText = 'Sem local';
+        }
+    }
+
     updateStats();
 }
 
@@ -115,15 +131,25 @@ function updateStats() {
     document.getElementById('char-count').innerText = `${chars} caracteres`;
 }
 
-function saveCurrentNote() {
+async function saveCurrentNote() {
     const title = document.getElementById('modal-title-input').value;
     const content = document.getElementById('modal-textarea').value;
+
+    // Save to Memory
     if (currentNoteId) {
         const noteIndex = notes.findIndex(n => n.id === currentNoteId);
         if (noteIndex > -1) {
             notes[noteIndex].title = title;
             notes[noteIndex].content = content;
             notes[noteIndex].date = new Date().toISOString();
+
+            // CHECK IF LOCAL FILE
+            const note = notes[noteIndex];
+            if (note.fileHandle) {
+                showToast('Salvando no disco...');
+                const success = await FSHandler.saveFile(note.fileHandle, content);
+                if (success) showToast('Arquivo atualizado no disco!');
+            }
         }
     }
     showToast('Nota salva com sucesso');
