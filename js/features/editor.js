@@ -153,6 +153,7 @@ async function saveCurrentNote() {
         }
     }
     showToast('Nota salva com sucesso');
+    saveData(); // Persist changes
     saveCanvasLayout();
 }
 
@@ -172,5 +173,73 @@ function quickSaveNote() {
     titleInput.value = '';
     contentInput.value = '';
     showToast('Nota criada rapidamente');
+    saveData(); // Persist changes
     if (document.getElementById('view-canvas').classList.contains('active')) initCanvas();
+}
+
+function deleteCurrentNote() {
+    debugger; // For devtools if needed
+    console.log('deleteCurrentNote triggered', currentNoteId);
+
+    if (!currentNoteId) return;
+
+    // Find note
+    const note = notes.find(n => n.id === currentNoteId);
+    if (!note) {
+        console.error('Note not found in memory');
+        return;
+    }
+
+    console.log('Note found:', note);
+
+    // Try to resolve Workspace linkage
+    let wsId = null;
+    let fileId = null;
+
+    // 1. Explicit Location
+    if (note.location && note.location.workspaceId) {
+        wsId = note.location.workspaceId;
+        fileId = note.id; // Assumption: note.id === file.id
+    }
+
+    // 2. Implicit Location (Search in all workspaces)
+    if (!wsId) {
+        // Try to find a file with matching ID in any workspace
+        for (const w of workspaces) {
+            const f = workspaceFiles[w.id]?.find(file => file.id === note.id);
+            if (f) {
+                wsId = w.id;
+                fileId = f.id;
+                console.log('Found implicit workspace linkage:', wsId, fileId);
+                break;
+            }
+        }
+    }
+
+    if (wsId && fileId) {
+        console.log('Attempting triggerDeleteFile', wsId, fileId);
+        if (typeof triggerDeleteFile === 'function') {
+            triggerDeleteFile(wsId, fileId);
+
+            // IMPORTANT: We need to react to the modal closure to close the editor IF deleted.
+            // Currently triggerDeleteFile just shows modal.
+            // The modal callback `confirmDeleteAction` does the heavy lifting.
+            // We can listen/hook or just rely on global state?
+            // If we rely on global state, `confirmDeleteAction` needs to know it should potentially close the editor.
+            // We can check if `currentNoteId` matches the deleted file.
+            return;
+        } else {
+            console.error('triggerDeleteFile is not a function');
+        }
+    }
+
+    // Fallback: Memory Only
+    console.log('No workspace link found. Using fallback deletion.');
+    if (confirm('Excluir esta nota rápida permanentemente?')) {
+        notes = notes.filter(n => n.id !== currentNoteId);
+        saveData();
+        closePreview();
+        renderNotes();
+        showToast('Nota excluída.');
+    }
 }

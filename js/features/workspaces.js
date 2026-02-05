@@ -46,6 +46,7 @@ function submitNewWorkspace() {
         date: new Date().toISOString()
     });
     workspaceFiles[newId] = [];
+    saveData(); // Persist changes
     renderWorkspaces();
     showToast('Workspace criado com sucesso');
 
@@ -100,8 +101,21 @@ function renderWorkspaces() {
 
 function switchWorkspace(id) {
     currentWorkspaceId = id;
-    renderWorkspaces();
-    renderExplorer(id);
+    // Persist
+    saveData();
+    renderExplorer(id); // Changed wsId to id to match function parameter
+
+    // If we just deleted the note that is currently open in the editor, close it
+    // NOTE: The variables 'currentNoteId', 'fileId', 'closePreview', 'renderNotes', and 'closeDeleteModal'
+    // are not defined in the provided code snippet or are out of context for 'switchWorkspace'.
+    // This block seems to belong to a file deletion function.
+    // However, following the instruction to insert it as provided.
+    if (currentNoteId && currentNoteId === fileId) {
+        closePreview();
+        renderNotes(); // Update grid if needed
+    }
+
+    closeDeleteModal();
     showToast(`Workspace alterado para ${workspaces.find(w => w.id === id).name}`);
 }
 
@@ -150,6 +164,9 @@ function renderExplorer(wsId) {
                 </button>
                 <button onclick="toggleFileLock(${wsId}, ${file.id})" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-100" title="${file.locked ? 'Destrancar' : 'Trancar'}">
                     <i data-lucide="${file.locked ? 'unlock' : 'lock'}" class="w-3.5 h-3.5"></i>
+                </button>
+                <button onclick="triggerDeleteFile(${wsId}, ${file.id})" class="p-1 hover:bg-red-900/30 rounded text-zinc-400 hover:text-red-400" title="Excluir">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                 </button>
             </div>
         `;
@@ -240,4 +257,78 @@ function toggleFileLock(wsId, fileId) {
         }
         renderExplorer(wsId);
     }
+}
+
+// --- IMPORT LOGIC ---
+function triggerImportMenu() {
+    document.getElementById('import-modal').classList.remove('hidden');
+    document.getElementById('import-modal').classList.add('flex');
+}
+
+async function handleImport(type) {
+    document.getElementById('import-modal').classList.add('hidden');
+    document.getElementById('import-modal').classList.remove('flex');
+
+    try {
+        if (type === 'file') {
+            const [handle] = await window.showOpenFilePicker();
+            if (handle) {
+                await addFileToWorkspace(currentWorkspaceId, handle);
+            }
+        } else if (type === 'folder') {
+            const handle = await window.showDirectoryPicker();
+            if (handle) {
+                await addFolderToWorkspace(currentWorkspaceId, handle);
+            }
+        }
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            console.error(e);
+            showToast('Erro na importação: ' + e.message);
+        }
+    }
+}
+
+async function addFileToWorkspace(wsId, handle) {
+    const fileData = await handle.getFile();
+    const newFile = {
+        id: Date.now(),
+        name: handle.name,
+        type: 'file',
+        size: formatSize(fileData.size),
+        status: 'visible',
+        locked: false,
+        handle: handle // Store handle
+    };
+
+    workspaceFiles[wsId].push(newFile);
+    saveData();
+    renderExplorer(wsId);
+    showToast(`Arquivo "${handle.name}" importado!`);
+}
+
+async function addFolderToWorkspace(wsId, handle) {
+    const newFolder = {
+        id: Date.now(),
+        name: handle.name,
+        type: 'folder',
+        size: '-',
+        status: 'visible',
+        locked: false,
+        handle: handle,
+        isMount: true // Mark as a mounted folder
+    };
+
+    workspaceFiles[wsId].push(newFolder);
+    saveData();
+    renderExplorer(wsId);
+    showToast(`Pasta "${handle.name}" vinculada!`);
+}
+
+function formatSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }

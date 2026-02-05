@@ -114,5 +114,16 @@ const FSHandler = {
             console.error('Error creating file:', err);
             return null;
         }
+        return null;
+    },
+    async deleteFile(parentHandle, name) {
+        if (!parentHandle) return false;
+        try {
+            await parentHandle.removeEntry(name);
+            return true;
+        } catch (err) {
+            console.error('Error deleting file:', err);
+            return false;
+        }
     }
 };

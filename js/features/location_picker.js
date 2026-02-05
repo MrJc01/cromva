@@ -29,19 +29,27 @@ const LocationPicker = {
         list.innerHTML = '';
 
         // "Add Local" Button
-        if (FSHandler.isSupported()) {
+        if (typeof FSHandler !== 'undefined' && FSHandler.isSupported()) {
             const addEl = document.createElement('div');
             addEl.className = 'flex-shrink-0 px-3 py-2 rounded-lg border border-dashed border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-500 cursor-pointer transition-all flex items-center gap-2';
             addEl.innerHTML = `<i data-lucide="folder-plus" class="w-3.5 h-3.5"></i> <span class="text-xs font-bold">Abrir Local</span>`;
             addEl.onclick = async () => {
-                const newWs = await FSHandler.openDirectory();
-                if (newWs) {
-                    this.selectedWorkspaceId = newWs.id;
-                    this.selectedFolderId = null;
-                    if (renderWorkspaces) renderWorkspaces(); // Refresh main workspace list
-                    this.renderWorkspaces(); // Refresh picker list
-                    this.renderFolders(newWs.id);
-                    showToast(`Pasta "${newWs.name}" adicionada!`);
+                try {
+                    const handle = await window.showDirectoryPicker();
+                    if (handle) {
+                        const newWs = await addWorkspaceFromFolder(handle);
+                        this.selectedWorkspaceId = newWs.id;
+                        this.selectedFolderId = null;
+                        if (typeof renderWorkspaces === 'function') renderWorkspaces();
+                        this.renderWorkspaces();
+                        this.renderFolders(newWs.id);
+                        showToast(`Pasta "${newWs.name}" adicionada!`);
+                    }
+                } catch (e) {
+                    if (e.name !== 'AbortError') {
+                        console.error(e);
+                        showToast('Erro ao selecionar pasta.');
+                    }
                 }
             };
             list.appendChild(addEl);
@@ -51,13 +59,13 @@ const LocationPicker = {
             const isSelected = ws.id === this.selectedWorkspaceId;
             const el = document.createElement('div');
             el.className = `flex-shrink-0 px-3 py-2 rounded-lg border cursor-pointer transition-all ${isSelected
-                    ? 'bg-blue-600/20 border-blue-500 text-blue-200'
-                    : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-600'
+                ? 'bg-blue-600/20 border-blue-500 text-blue-200'
+                : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-600'
                 }`;
             el.innerHTML = `<span class="text-xs font-bold">${ws.name}</span>${ws.isLocal ? ' <i data-lucide="hard-drive" class="w-3 h-3 inline ml-1 opacity-50"></i>' : ''}`;
             el.onclick = () => {
                 this.selectedWorkspaceId = ws.id;
-                this.selectedFolderId = null; // Reset folder on workspace switch
+                this.selectedFolderId = null;
                 this.renderWorkspaces();
                 this.renderFolders(ws.id);
             };

@@ -40,6 +40,7 @@ function switchSettingsTab(tabId) {
     document.getElementById('settings-title').innerText = titles[tabId];
 
     if (tabId === 'search') renderSearchSettings();
+    if (tabId === 'advanced') renderAdvancedSettings();
 }
 
 function checkForUpdates() {
