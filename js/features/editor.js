@@ -78,22 +78,47 @@ function updateSaveButtonState() {
         btn.title = 'Nenhuma alteração para salvar';
     }
 }
+function isNoteVisible(n) {
+    const wsId = window.currentWorkspaceId;
+
+    // 1. Basic Workspace Filter
+    if (!n.location) return !wsId;
+    if (wsId && n.location.workspaceId !== wsId) return false;
+
+    // 2. Visibility Filter
+    if (wsId) {
+        const wsFiles = window.workspaceFiles[wsId] || [];
+        let file = wsFiles.find(f => f.id === n.id);
+        if (file && file.status === 'hidden') return false;
+
+        if (n.location.folderId) {
+            const folder = wsFiles.find(f => f.id === n.location.folderId && f.type === 'folder');
+            if (folder && folder.status === 'hidden') return false;
+
+            if (!file && folder && folder.children) {
+                const child = folder.children.find(c => c.id === n.id);
+                if (child && child.status === 'hidden') return false;
+            }
+        }
+    }
+    return true;
+}
+
 function renderNotes() {
     const grid = document.getElementById('notes-grid');
     if (!grid) return;
     grid.innerHTML = '';
 
-    // Get notes from memory - FILTER by current workspace
+    // Get notes from memory - FILTER by current workspace AND visibility
     const wsId = window.currentWorkspaceId;
-    let allItems = window.notes.filter(n => {
-        // Show notes that belong to current workspace OR have no location (legacy notes)
-        if (!n.location) return !wsId; // Show locationless notes only when no workspace selected
-        return n.location.workspaceId === wsId;
-    });
+    let allItems = window.notes.filter(n => isNoteVisible(n));
 
     // Add files from current workspace that are .md files and not already in notes
     if (wsId && window.workspaceFiles[wsId]) {
-        const wsFiles = window.workspaceFiles[wsId].filter(f =>
+        // Filter visible files
+        const wsFilesVisible = window.workspaceFiles[wsId].filter(f => f.status !== 'hidden');
+
+        const wsFiles = wsFilesVisible.filter(f =>
             f.type === 'file' &&
             f.name.endsWith('.md') &&
             !allItems.some(n => n.id === f.id || (n.location && n.location.folderId === f.id))
@@ -144,8 +169,15 @@ function renderRecents() {
     if (!list || !count) return;
 
     list.innerHTML = '';
-    const recents = window.notes.slice(0, 5);
-    count.innerText = window.notes.length;
+
+    // Filter visible notes for recents too
+    const visibleNotes = window.notes.filter(n => isNoteVisible(n));
+    // Sort by date descending
+    visibleNotes.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const recents = visibleNotes.slice(0, 5);
+    count.innerText = visibleNotes.length;
+
     recents.forEach(note => {
         const item = document.createElement('div');
         item.className = 'flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/30 rounded cursor-pointer group transition-colors';
@@ -176,7 +208,54 @@ function setEditorMode(mode) {
     updatePreviewRender();
 }
 
-async function openPreview(id) {
+async function openPreview(id, authenticated = false) {
+    if (!authenticated) {
+        // Security Check: Lock
+        let wsId = window.currentWorkspaceId;
+        const note = window.notes.find(n => n.id === id);
+        if (note && note.location) wsId = note.location.workspaceId;
+
+        if (wsId) {
+            const wsFiles = window.workspaceFiles[wsId] || [];
+
+            // Check direct file lock
+            let file = wsFiles.find(f => f.id === id);
+
+            // If not found in root, check if inside folder (mounts)
+            if (!file) {
+                for (const folder of wsFiles) {
+                    if (folder.children && Array.isArray(folder.children)) {
+                        file = folder.children.find(f => f.id === id);
+                        if (file) break;
+                    }
+                }
+            }
+
+            if (file && file.locked) {
+                const pass = prompt(`Arquivo "${file.name}" protegido por senha:`);
+                if (!pass || btoa(pass) !== file.passwordHash) {
+                    showToast("Senha incorreta");
+                    return;
+                }
+            }
+
+            // Check parent folder lock
+            let folderId = note?.location?.folderId;
+            // If file ref, logic might differ but assuming folderId is reliable if linked
+
+            if (folderId) {
+                const folder = wsFiles.find(f => f.id === folderId && f.type === 'folder');
+                if (folder && folder.locked) {
+                    const pass = prompt(`Pasta "${folder.name}" protegida por senha:`);
+                    if (!pass || btoa(pass) !== folder.passwordHash) {
+                        showToast("Senha incorreta");
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
     window.currentNoteId = id;
     let note = window.notes.find(n => n.id === id);
 
@@ -233,10 +312,27 @@ async function openPreview(id) {
     if (label) {
         if (note.location) {
             const ws = window.workspaces.find(w => w.id === note.location.workspaceId);
-            const folder = note.location.folderId
-                ? (window.workspaceFiles[note.location.workspaceId] || []).find(f => f.id === note.location.folderId)
-                : { name: '/' };
-            if (ws) label.innerText = `${ws.name} > ${folder ? folder.name : 'Unknown'}`;
+
+            // Find folder - search in workspaceFiles first level
+            let folder = null;
+            const wsFiles = window.workspaceFiles[note.location.workspaceId] || [];
+
+            if (note.location.folderId) {
+                // First, try to find a folder with matching ID
+                folder = wsFiles.find(f => f.id === note.location.folderId && f.type === 'folder');
+
+                // If not found, maybe it's the folder that contains the file
+                if (!folder) {
+                    // Search for folder that contains a child with matching ID
+                    folder = wsFiles.find(f =>
+                        f.type === 'folder' &&
+                        f.children?.some(c => c.id === note.location.folderId)
+                    );
+                }
+            }
+
+            const folderName = folder ? folder.name : '/';
+            if (ws) label.innerText = `${ws.name} > ${folderName}`;
             else label.innerText = 'Sem local';
         } else {
             label.innerText = 'Sem local';
@@ -245,6 +341,11 @@ async function openPreview(id) {
 
     updateStats();
     updateSaveButtonState();
+
+    // Update category label
+    if (typeof updateCategoryLabel === 'function') {
+        updateCategoryLabel();
+    }
 
     // Add event listeners for change tracking
     const titleInput = document.getElementById('modal-title-input');
@@ -482,10 +583,13 @@ function deleteCurrentNote() {
 }
 
 // Modal for virtual notes (notes without workspace file linkage)
-let pendingDeleteNoteId = null;
+window.pendingDeleteNoteId = null;
 
 function triggerDeleteNote(note) {
-    pendingDeleteNoteId = note.id;
+    window.pendingDeleteNoteId = note.id;
+    // Clear workspace delete state
+    if (typeof window.pendingDeleteWsId !== 'undefined') window.pendingDeleteWsId = null;
+    if (typeof window.pendingDeleteFileId !== 'undefined') window.pendingDeleteFileId = null;
 
     const modal = document.getElementById('delete-modal');
     const nameEl = document.getElementById('delete-filename');
@@ -505,9 +609,9 @@ function triggerDeleteNote(note) {
 }
 
 function confirmDeleteNoteAction() {
-    if (!pendingDeleteNoteId) return;
+    if (!window.pendingDeleteNoteId) return;
 
-    const noteId = pendingDeleteNoteId;
+    const noteId = window.pendingDeleteNoteId;
 
     // Remove from notes
     window.notes = window.notes.filter(n => n.id !== noteId);
@@ -521,8 +625,7 @@ function confirmDeleteNoteAction() {
     saveData();
     closePreview();
     renderNotes();
-    closeDeleteModal();
-    pendingDeleteNoteId = null;
+    closeDeleteModal(); // This will clear the window var
     showToast('Nota excluída.');
 }
 

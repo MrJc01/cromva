@@ -225,6 +225,32 @@
                             data-lucide="columns" class="w-3.5 h-3.5"></i> Split</button>
                 </div>
                 <div class="flex items-center gap-2">
+                    <!-- Category Dropdown -->
+                    <div class="relative" id="category-dropdown-container">
+                        <button onclick="toggleCategoryDropdown()" id="btn-category-picker"
+                            class="px-2 py-1.5 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 rounded-md transition-colors flex items-center gap-2 text-xs border border-transparent hover:border-zinc-700">
+                            <i data-lucide="tag" class="w-3.5 h-3.5"></i>
+                            <span id="current-category-label" class="hidden sm:inline">Sistema</span>
+                        </button>
+                        <div id="category-dropdown"
+                            class="absolute top-full right-0 mt-1 w-56 glass border border-zinc-700 rounded-lg shadow-2xl hidden z-50">
+                            <div class="p-2 border-b border-zinc-800">
+                                <input type="text" id="category-search" placeholder="Buscar ou criar..."
+                                    class="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-blue-500"
+                                    oninput="filterCategories(this.value)">
+                            </div>
+                            <div id="category-list" class="max-h-48 overflow-y-auto custom-scrollbar p-1">
+                                <!-- Categories injected here -->
+                            </div>
+                            <div class="p-2 border-t border-zinc-800">
+                                <button onclick="createNewCategory()" id="btn-create-category"
+                                    class="w-full text-left px-2 py-1.5 text-xs text-blue-400 hover:bg-zinc-800 rounded flex items-center gap-2 hidden">
+                                    <i data-lucide="plus" class="w-3 h-3"></i>
+                                    <span>Criar "<span id="new-category-name"></span>"</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     <button onclick="LocationPicker.open()" title="Selecionar Local" id="btn-location-picker"
                         class="px-2 py-1.5 text-zinc-400 hover:text-blue-400 hover:bg-zinc-800 rounded-md transition-colors flex items-center gap-2 text-xs border border-transparent hover:border-zinc-700">
                         <i data-lucide="folder-output" class="w-3.5 h-3.5"></i> <span id="current-location-label"
@@ -637,7 +663,7 @@
 
     <!-- Delete Confirmation Modal -->
     <div id="delete-modal"
-        class="fixed inset-0 bg-black/80 z-[90] hidden items-center justify-center backdrop-blur-sm animate__animated animate__fadeIn animate__faster">
+        class="fixed inset-0 bg-black/80 z-[200] hidden items-center justify-center backdrop-blur-sm animate__animated animate__fadeIn animate__faster">
         <div
             class="glass p-6 rounded-xl w-full max-w-sm border border-red-900/50 shadow-2xl animate__animated animate__zoomIn animate__faster">
             <h3 class="text-lg font-bold text-zinc-100 mb-1 flex items-center gap-2"><i data-lucide="alert-circle"
@@ -646,13 +672,13 @@
                     class="font-bold text-zinc-200">arquivo.txt</span>?</p>
 
             <div class="space-y-3">
-                <button onclick="confirmDeleteAction('remove')"
+                <button onclick="console.log('CLICK REMOVE BTN'); confirmDeleteAction('remove')"
                     class="w-full flex items-center justify-between px-4 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-all group">
                     <span class="text-xs font-semibold text-zinc-300 group-hover:text-zinc-100">Remover do Cromva</span>
                     <span class="text-[10px] text-zinc-500">Mantém no disco</span>
                 </button>
 
-                <button onclick="confirmDeleteAction('disk')" id="btn-delete-disk"
+                <button onclick="console.log('CLICK DISK BTN'); confirmDeleteAction('disk')" id="btn-delete-disk"
                     class="w-full flex items-center justify-between px-4 py-3 bg-red-900/10 hover:bg-red-500/20 border border-red-900/30 hover:border-red-500/50 rounded-lg transition-all group">
                     <span class="text-xs font-semibold text-red-400 group-hover:text-red-300">Excluir do Disco</span>
                     <span class="text-[10px] text-red-500/60 group-hover:text-red-400">Irreversível</span>
@@ -807,6 +833,48 @@
         </div>
     </div>
 
+    <!-- Move/Copy Confirmation Modal -->
+    <div id="move-copy-modal"
+        class="fixed inset-0 bg-black/80 z-[85] hidden items-center justify-center backdrop-blur-sm animate__animated animate__fadeIn animate__faster">
+        <div
+            class="glass p-6 rounded-xl w-full max-w-sm border border-zinc-700 shadow-2xl animate__animated animate__zoomIn animate__faster">
+            <h3 class="text-lg font-bold text-zinc-100 mb-1 flex items-center gap-2">
+                <i data-lucide="folder-sync" class="w-5 h-5 text-blue-500"></i> Alterar Local
+            </h3>
+            <p class="text-xs text-zinc-400 mb-4">O que você deseja fazer com o arquivo?</p>
+
+            <div id="move-copy-info" class="bg-zinc-900/50 rounded-lg p-3 mb-4 border border-zinc-800">
+                <p class="text-xs text-zinc-500">De: <span id="mc-from" class="text-zinc-300">-</span></p>
+                <p class="text-xs text-zinc-500 mt-1">Para: <span id="mc-to" class="text-zinc-300">-</span></p>
+            </div>
+
+            <div class="space-y-3">
+                <button onclick="LocationPicker.executeMove()"
+                    class="w-full flex items-center justify-between px-4 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-all group">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="move" class="w-4 h-4 text-blue-400"></i>
+                        <span class="text-xs font-semibold text-zinc-300 group-hover:text-zinc-100">Mover</span>
+                    </div>
+                    <span class="text-[10px] text-zinc-500">Remove do local antigo</span>
+                </button>
+
+                <button onclick="LocationPicker.executeCopy()"
+                    class="w-full flex items-center justify-between px-4 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-all group">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="copy" class="w-4 h-4 text-emerald-400"></i>
+                        <span class="text-xs font-semibold text-zinc-300 group-hover:text-zinc-100">Copiar</span>
+                    </div>
+                    <span class="text-[10px] text-zinc-500">Mantém no local original</span>
+                </button>
+            </div>
+
+            <div class="flex justify-center mt-4">
+                <button onclick="LocationPicker.closeMoveModal()"
+                    class="text-xs text-zinc-500 hover:text-zinc-300 underline underline-offset-2">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Core Modules -->
     <script src="js/core/constants.js"></script>
     <script src="js/core/config.js"></script>
@@ -860,6 +928,7 @@
     <script src="js/features/workspaces.js"></script>
     <script src="js/features/settings.js"></script>
     <script src="js/features/location_picker.js"></script>
+    <script src="js/features/category_picker.js"></script>
     <script src="js/features/undo_redo.js"></script>
     <script src="js/features/line_counter.js"></script>
     <script src="js/features/toolbar.js"></script>

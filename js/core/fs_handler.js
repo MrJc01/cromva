@@ -246,15 +246,20 @@ const FSHandler = {
         }
         return null;
     },
-    async deleteFile(parentHandle, name) {
+    async deleteEntry(parentHandle, name, isDirectory = false) {
         if (!parentHandle) return false;
         try {
-            await parentHandle.removeEntry(name);
+            // Se for diretório, precisa de recursive: true
+            await parentHandle.removeEntry(name, { recursive: isDirectory });
             return true;
         } catch (err) {
-            console.error('Error deleting file:', err);
+            console.error('Error deleting entry:', err);
             return false;
         }
+    },
+    // Alias para compatibilidade
+    async deleteFile(parentHandle, name) {
+        return this.deleteEntry(parentHandle, name, false);
     },
 
     async syncFilesToNotes(wsId) {
