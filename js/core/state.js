@@ -1,22 +1,20 @@
-// --- DATA PERSISTENCE ---
-
-let notes = [];
-let workspaces = [];
-let workspaceFiles = {};
-
-// --- GLOBAL STATE ---
-let currentWorkspaceId = null;
-let isSidebarHidden = false;
-let currentView = 'home';
-let currentNoteId = null;
-let isFullscreen = false;
+// --- DATA PERSISTENCE & GLOBAL STATE ---
+window.notes = [];
+window.workspaces = [];
+window.workspaceFiles = {};
+window.currentWorkspaceId = null;
+window.isSidebarHidden = false;
+window.currentView = 'home';
+window.currentNoteId = null;
+window.isFullscreen = false;
 
 function saveData() {
     const data = {
-        notes,
-        workspaces,
-        workspaceFiles
+        notes: window.notes,
+        workspaces: window.workspaces,
+        workspaceFiles: window.workspaceFiles
     };
+    console.log('[State] Saving data to localStorage...', data.workspaces.length, 'workspaces');
     localStorage.setItem('cromvaData', JSON.stringify(data));
 }
 
@@ -25,11 +23,12 @@ function loadData() {
     if (raw) {
         try {
             const data = JSON.parse(raw);
-            notes = data.notes || [];
-            workspaces = data.workspaces || [];
-            workspaceFiles = data.workspaceFiles || {};
+            window.notes = data.notes || [];
+            window.workspaces = data.workspaces || [];
+            window.workspaceFiles = data.workspaceFiles || {};
+            console.log('[State] Data loaded from localStorage');
         } catch (e) {
-            console.error('Failed to load data', e);
+            console.error('[State] Failed to load data', e);
             initDefaultData();
         }
     } else {
@@ -37,14 +36,19 @@ function loadData() {
     }
 
     // Ensure currentWorkspaceId is valid
-    if (workspaces.length > 0) {
-        currentWorkspaceId = workspaces[0].id;
+    if (window.workspaces.length > 0) {
+        // Default to first workspace if currentWorkspaceId is invalid
+        const current = window.workspaces.find(ws => ws.id === window.currentWorkspaceId);
+        if (!current) {
+            window.currentWorkspaceId = window.workspaces[0].id;
+        }
     }
 }
 
 function initDefaultData() {
+    console.log('[State] Initializing default data...');
     // Default Welcome Note
-    notes = [
+    window.notes = [
         {
             id: 1,
             title: 'Bem-vindo ao Cromva',
@@ -55,11 +59,11 @@ function initDefaultData() {
     ];
 
     // Default Workspace
-    workspaces = [
+    window.workspaces = [
         { id: 1, name: 'Principal', desc: 'Workspace padrão', color: 'blue', date: new Date().toISOString() }
     ];
 
-    workspaceFiles = {
+    window.workspaceFiles = {
         1: []
     };
 

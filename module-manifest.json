@@ -1,0 +1,446 @@
+{
+    "name": "cromva",
+    "version": "1.0.0",
+    "description": "Cromva OS - Second Brain Application",
+    "modules": {
+        "core": {
+            "constants": {
+                "path": "js/core/constants.js",
+                "dependencies": [],
+                "exports": [
+                    "CROMVA"
+                ]
+            },
+            "events": {
+                "path": "js/core/events.js",
+                "dependencies": [],
+                "exports": [
+                    "CromvaEvents"
+                ]
+            },
+            "config": {
+                "path": "js/core/config.js",
+                "dependencies": [],
+                "exports": [
+                    "CromvaConfig"
+                ]
+            },
+            "cromva_state": {
+                "path": "js/core/cromva_state.js",
+                "dependencies": [
+                    "events"
+                ],
+                "exports": [
+                    "CromvaState"
+                ]
+            },
+            "state": {
+                "path": "js/core/state.js",
+                "dependencies": [
+                    "config"
+                ],
+                "exports": [
+                    "loadData",
+                    "saveData"
+                ]
+            },
+            "handle_store": {
+                "path": "js/core/handle_store.js",
+                "dependencies": [],
+                "exports": [
+                    "HandleStore"
+                ]
+            },
+            "fs_handler": {
+                "path": "js/core/fs_handler.js",
+                "dependencies": [
+                    "handle_store"
+                ],
+                "exports": [
+                    "FSHandler"
+                ]
+            },
+            "file_cache": {
+                "path": "js/core/file_cache.js",
+                "dependencies": [],
+                "exports": [
+                    "FileCache"
+                ]
+            },
+            "file_watcher": {
+                "path": "js/core/file_watcher.js",
+                "dependencies": [
+                    "events"
+                ],
+                "exports": [
+                    "FileWatcher"
+                ]
+            },
+            "data_manager": {
+                "path": "js/core/data_manager.js",
+                "dependencies": [
+                    "state",
+                    "events"
+                ],
+                "exports": [
+                    "DataManager"
+                ]
+            },
+            "offline": {
+                "path": "js/core/offline.js",
+                "dependencies": [
+                    "events"
+                ],
+                "exports": [
+                    "OfflineMode"
+                ]
+            },
+            "error_handler": {
+                "path": "js/core/error_handler.js",
+                "dependencies": [
+                    "events"
+                ],
+                "exports": [
+                    "ErrorHandler"
+                ]
+            },
+            "module_registry": {
+                "path": "js/core/module_registry.js",
+                "dependencies": [
+                    "logger"
+                ],
+                "exports": [
+                    "ModuleRegistry",
+                    "createModule"
+                ]
+            },
+            "editor_namespace": {
+                "path": "js/core/editor_namespace.js",
+                "dependencies": [
+                    "events"
+                ],
+                "exports": [
+                    "Editor"
+                ]
+            },
+            "workspace_manager": {
+                "path": "js/core/workspace_manager.js",
+                "dependencies": [
+                    "events",
+                    "state"
+                ],
+                "exports": [
+                    "WorkspaceManager"
+                ]
+            }
+        },
+        "utils": {
+            "helpers": {
+                "path": "js/utils/helpers.js",
+                "dependencies": [],
+                "exports": [
+                    "formatSize",
+                    "debounce"
+                ]
+            },
+            "sorter": {
+                "path": "js/utils/sorter.js",
+                "dependencies": [],
+                "exports": [
+                    "Sorter"
+                ]
+            },
+            "search": {
+                "path": "js/utils/search.js",
+                "dependencies": [],
+                "exports": [
+                    "SearchEngine"
+                ]
+            },
+            "markdown_parser": {
+                "path": "js/utils/markdown_parser.js",
+                "dependencies": [],
+                "exports": [
+                    "MarkdownParser"
+                ]
+            },
+            "logger": {
+                "path": "js/utils/logger.js",
+                "dependencies": [],
+                "exports": [
+                    "CromvaLogger"
+                ]
+            },
+            "performance": {
+                "path": "js/utils/performance.js",
+                "dependencies": [],
+                "exports": [
+                    "PerformanceMetrics"
+                ]
+            },
+            "debug_panel": {
+                "path": "js/utils/debug_panel.js",
+                "dependencies": [
+                    "events"
+                ],
+                "exports": [
+                    "DebugPanel"
+                ]
+            }
+        },
+        "ui": {
+            "navigation": {
+                "path": "js/ui/navigation.js",
+                "dependencies": [
+                    "events"
+                ],
+                "exports": [
+                    "Navigation"
+                ]
+            },
+            "keyboard": {
+                "path": "js/ui/keyboard.js",
+                "dependencies": [
+                    "constants"
+                ],
+                "exports": [
+                    "KeyboardManager"
+                ]
+            },
+            "modals": {
+                "path": "js/ui/modals.js",
+                "dependencies": [],
+                "exports": [
+                    "ModalManager"
+                ]
+            },
+            "components": {
+                "path": "js/ui/components.js",
+                "dependencies": [],
+                "exports": [
+                    "showToast",
+                    "ConfirmModal"
+                ]
+            },
+            "context_menu": {
+                "path": "js/ui/context_menu.js",
+                "dependencies": [],
+                "exports": [
+                    "ContextMenu"
+                ]
+            },
+            "theme": {
+                "path": "js/ui/theme.js",
+                "dependencies": [],
+                "exports": [
+                    "ThemeManager"
+                ]
+            },
+            "animations": {
+                "path": "js/ui/animations.js",
+                "dependencies": [],
+                "exports": [
+                    "Animations"
+                ]
+            },
+            "breadcrumb": {
+                "path": "js/ui/breadcrumb.js",
+                "dependencies": [],
+                "exports": [
+                    "Breadcrumb"
+                ]
+            },
+            "connection": {
+                "path": "js/ui/connection.js",
+                "dependencies": [],
+                "exports": [
+                    "ConnectionStatus"
+                ]
+            },
+            "file_preview": {
+                "path": "js/ui/file_preview.js",
+                "dependencies": [],
+                "exports": [
+                    "FilePreview"
+                ]
+            },
+            "onboarding": {
+                "path": "js/ui/onboarding.js",
+                "dependencies": [],
+                "exports": [
+                    "OnboardingTour"
+                ]
+            },
+            "workspace_ui": {
+                "path": "js/ui/workspace_ui.js",
+                "dependencies": [
+                    "workspace_manager"
+                ],
+                "exports": [
+                    "WorkspaceUI"
+                ]
+            },
+            "storage_info": {
+                "path": "js/ui/storage_info.js",
+                "dependencies": [],
+                "exports": [
+                    "StorageInfo"
+                ]
+            }
+        },
+        "features": {
+            "editor": {
+                "path": "js/features/editor.js",
+                "dependencies": [
+                    "state",
+                    "events"
+                ],
+                "exports": [
+                    "openEditor",
+                    "saveNote"
+                ]
+            },
+            "editor_renderer": {
+                "path": "js/features/editor_renderer.js",
+                "dependencies": [
+                    "markdown_parser"
+                ],
+                "exports": [
+                    "EditorRenderer"
+                ]
+            },
+            "undo_redo": {
+                "path": "js/features/undo_redo.js",
+                "dependencies": [],
+                "exports": [
+                    "UndoManager"
+                ]
+            },
+            "line_counter": {
+                "path": "js/features/line_counter.js",
+                "dependencies": [],
+                "exports": [
+                    "LineCounter"
+                ]
+            },
+            "toolbar": {
+                "path": "js/features/toolbar.js",
+                "dependencies": [],
+                "exports": [
+                    "EditorToolbar"
+                ]
+            },
+            "find_replace": {
+                "path": "js/features/find_replace.js",
+                "dependencies": [],
+                "exports": [
+                    "FindReplace"
+                ]
+            },
+            "focus_mode": {
+                "path": "js/features/focus_mode.js",
+                "dependencies": [],
+                "exports": [
+                    "FocusMode"
+                ]
+            },
+            "favorites": {
+                "path": "js/features/favorites.js",
+                "dependencies": [
+                    "state"
+                ],
+                "exports": [
+                    "FavoritesManager"
+                ]
+            },
+            "markdown_preview": {
+                "path": "js/features/markdown_preview.js",
+                "dependencies": [
+                    "markdown_parser"
+                ],
+                "exports": [
+                    "MarkdownPreview"
+                ]
+            },
+            "multi_select": {
+                "path": "js/features/multi_select.js",
+                "dependencies": [],
+                "exports": [
+                    "MultiSelect"
+                ]
+            },
+            "image_drop": {
+                "path": "js/features/image_drop.js",
+                "dependencies": [],
+                "exports": [
+                    "ImageDragDrop"
+                ]
+            },
+            "recent_locations": {
+                "path": "js/features/recent_locations.js",
+                "dependencies": [],
+                "exports": [
+                    "RecentLocations"
+                ]
+            },
+            "path_preview": {
+                "path": "js/features/path_preview.js",
+                "dependencies": [],
+                "exports": [
+                    "PathPreview"
+                ]
+            },
+            "folder_navigation": {
+                "path": "js/features/folder_navigation.js",
+                "dependencies": [
+                    "events"
+                ],
+                "exports": [
+                    "FolderNavigation"
+                ]
+            },
+            "folder_creator": {
+                "path": "js/features/folder_creator.js",
+                "dependencies": [
+                    "events"
+                ],
+                "exports": [
+                    "FolderCreator"
+                ]
+            },
+            "batch_selection": {
+                "path": "js/features/batch_selection.js",
+                "dependencies": [
+                    "events"
+                ],
+                "exports": [
+                    "BatchSelection"
+                ]
+            }
+        }
+    },
+    "loadOrder": [
+        "core/constants",
+        "core/events",
+        "core/config",
+        "utils/helpers",
+        "utils/logger",
+        "core/state",
+        "core/cromva_state",
+        "core/handle_store",
+        "core/fs_handler",
+        "core/file_cache",
+        "core/file_watcher",
+        "core/data_manager",
+        "core/offline",
+        "core/error_handler",
+        "core/module_registry",
+        "utils/sorter",
+        "utils/search",
+        "utils/markdown_parser",
+        "utils/performance",
+        "ui/*",
+        "features/*",
+        "utils/debug_panel"
+    ]
+}

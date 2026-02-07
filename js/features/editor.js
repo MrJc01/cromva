@@ -1,22 +1,128 @@
 // --- EDITOR LOGIC ---
 
+// Track original content to compare for save button state
+window.originalNoteContent = null;
+window.originalNoteTitle = null;
+
+// Auto-save configuration
+let autoSaveTimer = null;
+const AUTO_SAVE_DELAY = window.CromvaConfig?.EDITOR?.AUTO_SAVE_DELAY || 2000;
+let hasUnsavedChanges = false;
+
+/**
+ * Debounced auto-save function
+ */
+function scheduleAutoSave() {
+    if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+    }
+
+    hasUnsavedChanges = true;
+    updateUnsavedIndicator(true);
+
+    autoSaveTimer = setTimeout(() => {
+        if (hasUnsavedChanges && window.currentNoteId) {
+            console.log('[Editor] Auto-saving...');
+            saveCurrentNote();
+            hasUnsavedChanges = false;
+            updateUnsavedIndicator(false);
+        }
+    }, AUTO_SAVE_DELAY);
+}
+
+/**
+ * Atualiza indicador visual de alterações não salvas
+ */
+function updateUnsavedIndicator(unsaved) {
+    const indicator = document.getElementById('unsaved-indicator');
+    const title = document.getElementById('modal-title-input');
+
+    if (unsaved) {
+        // Adicionar asterisco ao título
+        if (title && !document.title.startsWith('• ')) {
+            document.title = '• ' + document.title;
+        }
+
+        // Mostrar indicador se existir
+        if (indicator) indicator.classList.remove('hidden');
+    } else {
+        // Remover asterisco
+        if (document.title.startsWith('• ')) {
+            document.title = document.title.substring(2);
+        }
+
+        // Esconder indicador
+        if (indicator) indicator.classList.add('hidden');
+    }
+}
+
+
+function updateSaveButtonState() {
+    const btn = document.getElementById('btn-save-note');
+    if (!btn) return;
+
+    const currentTitle = document.getElementById('modal-title-input').value;
+    const currentContent = document.getElementById('modal-textarea').value;
+
+    const hasChanges = currentTitle !== window.originalNoteTitle || currentContent !== window.originalNoteContent;
+
+    if (hasChanges) {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        btn.classList.add('hover:text-emerald-400', 'hover:bg-zinc-800');
+        btn.title = 'Salvar alterações';
+    } else {
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.classList.remove('hover:text-emerald-400', 'hover:bg-zinc-800');
+        btn.title = 'Nenhuma alteração para salvar';
+    }
+}
 function renderNotes() {
     const grid = document.getElementById('notes-grid');
     if (!grid) return;
     grid.innerHTML = '';
-    const sortedNotes = [...notes].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // Get notes from memory
+    let allItems = [...window.notes];
+
+    // Add files from current workspace that are .md files and not already in notes
+    const wsId = window.currentWorkspaceId;
+    if (wsId && window.workspaceFiles[wsId]) {
+        const wsFiles = window.workspaceFiles[wsId].filter(f =>
+            f.type === 'file' &&
+            f.name.endsWith('.md') &&
+            !allItems.some(n => n.id === f.id || (n.location && n.location.folderId === f.id))
+        );
+
+        wsFiles.forEach(file => {
+            allItems.push({
+                id: file.id,
+                title: file.name.replace('.md', ''),
+                content: '(Clique para carregar do disco)',
+                category: 'Disco',
+                date: new Date().toISOString(),
+                isFileRef: true,  // Mark as file reference (not loaded yet)
+                handle: file.handle,
+                location: { workspaceId: wsId, folderId: file.id }
+            });
+        });
+    }
+
+    const sortedNotes = allItems.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     sortedNotes.forEach(note => {
         const date = new Date(note.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
         const preview = note.content.substring(0, 120).replace(/[#*`>]/g, '') + '...';
+        const isFileRef = note.isFileRef;
 
         const card = document.createElement('div');
-        card.className = 'glass p-5 rounded-xl cursor-pointer hover:border-zinc-500 hover:shadow-2xl hover:shadow-zinc-900/50 transition-all duration-300 hover:-translate-y-1 group flex flex-col h-48 relative border-zinc-800';
+        card.className = `glass p-5 rounded-xl cursor-pointer hover:border-zinc-500 hover:shadow-2xl hover:shadow-zinc-900/50 transition-all duration-300 hover:-translate-y-1 group flex flex-col h-48 relative ${isFileRef ? 'border-emerald-800/50' : 'border-zinc-800'}`;
         card.onclick = () => openPreview(note.id);
         card.innerHTML = `
                     <div class="flex justify-between items-start mb-3">
-                        <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest border border-zinc-800 px-2 py-0.5 rounded bg-zinc-900/50">${note.category}</span>
-                        <div class="opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="arrow-up-right" class="w-4 h-4 text-zinc-500 hover:text-zinc-200"></i></div>
+                        <span class="text-[9px] font-bold ${isFileRef ? 'text-emerald-500 border-emerald-800' : 'text-zinc-500 border-zinc-800'} uppercase tracking-widest border px-2 py-0.5 rounded bg-zinc-900/50">${note.category}</span>
+                        <div class="opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="${isFileRef ? 'hard-drive' : 'arrow-up-right'}" class="w-4 h-4 ${isFileRef ? 'text-emerald-500' : 'text-zinc-500'} hover:text-zinc-200"></i></div>
                     </div>
                     <h3 class="font-bold text-zinc-100 mb-2 truncate text-base">${note.title}</h3>
                     <p class="text-xs text-zinc-400 leading-relaxed line-clamp-3 flex-1">${preview}</p>
@@ -34,8 +140,8 @@ function renderRecents() {
     if (!list || !count) return;
 
     list.innerHTML = '';
-    const recents = notes.slice(0, 5);
-    count.innerText = notes.length;
+    const recents = window.notes.slice(0, 5);
+    count.innerText = window.notes.length;
     recents.forEach(note => {
         const item = document.createElement('div');
         item.className = 'flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/30 rounded cursor-pointer group transition-colors';
@@ -66,11 +172,54 @@ function setEditorMode(mode) {
     updatePreviewRender();
 }
 
-function openPreview(id) {
-    currentNoteId = id;
-    const note = notes.find(n => n.id === id);
+async function openPreview(id) {
+    window.currentNoteId = id;
+    let note = window.notes.find(n => n.id === id);
+
+    // If note not found in memory, look for it in workspaceFiles (it's a file reference)
+    if (!note) {
+        const wsId = window.currentWorkspaceId;
+        const file = (window.workspaceFiles[wsId] || []).find(f => f.id === id);
+
+        if (file && file.handle) {
+            try {
+                showToast('Carregando arquivo do disco...');
+                const fileObj = await file.handle.getFile();
+                const content = await fileObj.text();
+
+                // Create note from file
+                note = {
+                    id: file.id,
+                    title: file.name.replace('.md', ''),
+                    content: content,
+                    category: 'Disco',
+                    date: new Date(fileObj.lastModified).toISOString(),
+                    location: { workspaceId: wsId, folderId: file.id },
+                    fileHandle: file.handle
+                };
+
+                // Add to notes array for future access
+                window.notes.push(note);
+                saveData();
+                showToast('Arquivo carregado!');
+            } catch (e) {
+                console.error('[Editor] Error loading file:', e);
+                showToast('Erro ao carregar arquivo. Reconecte a pasta.');
+                return;
+            }
+        } else {
+            showToast('Nota não encontrada');
+            return;
+        }
+    }
+
     document.getElementById('modal-title-input').value = note.title;
     document.getElementById('modal-textarea').value = note.content;
+
+    // Store original content for save button state tracking
+    window.originalNoteTitle = note.title;
+    window.originalNoteContent = note.content;
+
     setEditorMode('preview');
     document.getElementById('preview-modal').classList.remove('hidden');
     document.getElementById('preview-modal').classList.add('flex');
@@ -79,9 +228,9 @@ function openPreview(id) {
     const label = document.getElementById('current-location-label');
     if (label) {
         if (note.location) {
-            const ws = workspaces.find(w => w.id === note.location.workspaceId);
+            const ws = window.workspaces.find(w => w.id === note.location.workspaceId);
             const folder = note.location.folderId
-                ? (workspaceFiles[note.location.workspaceId] || []).find(f => f.id === note.location.folderId)
+                ? (window.workspaceFiles[note.location.workspaceId] || []).find(f => f.id === note.location.folderId)
                 : { name: '/' };
             if (ws) label.innerText = `${ws.name} > ${folder ? folder.name : 'Unknown'}`;
             else label.innerText = 'Sem local';
@@ -91,6 +240,19 @@ function openPreview(id) {
     }
 
     updateStats();
+    updateSaveButtonState();
+
+    // Add event listeners for change tracking
+    const titleInput = document.getElementById('modal-title-input');
+    const textarea = document.getElementById('modal-textarea');
+
+    // Remove old listeners to avoid duplicates
+    titleInput.removeEventListener('input', updateSaveButtonState);
+    textarea.removeEventListener('input', updateSaveButtonState);
+
+    // Add new listeners
+    titleInput.addEventListener('input', updateSaveButtonState);
+    textarea.addEventListener('input', updateSaveButtonState);
 }
 
 function closePreview() {
@@ -136,25 +298,103 @@ async function saveCurrentNote() {
     const content = document.getElementById('modal-textarea').value;
 
     // Save to Memory
-    if (currentNoteId) {
-        const noteIndex = notes.findIndex(n => n.id === currentNoteId);
+    if (window.currentNoteId) {
+        const noteIndex = window.notes.findIndex(n => n.id === window.currentNoteId);
         if (noteIndex > -1) {
-            notes[noteIndex].title = title;
-            notes[noteIndex].content = content;
+            window.notes[noteIndex].title = title;
+            window.notes[noteIndex].content = content;
             notes[noteIndex].date = new Date().toISOString();
 
-            // CHECK IF LOCAL FILE
-            const note = notes[noteIndex];
-            if (note.fileHandle) {
-                showToast('Salvando no disco...');
-                const success = await FSHandler.saveFile(note.fileHandle, content);
-                if (success) showToast('Arquivo atualizado no disco!');
+            // CHECK IF LOCAL FILE - Save to disk if note has fileHandle or workspace has handle
+            const note = window.notes[noteIndex];
+            console.log('[Editor] Note location:', note.location);
+            console.log('[Editor] FSHandler.handles:', FSHandler.handles);
+
+            if (note.location && note.location.workspaceId) {
+                const ws = window.workspaces.find(w => w.id === note.location.workspaceId);
+                const wsHandle = FSHandler.handles[note.location.workspaceId];
+                console.log('[Editor] Workspace:', ws?.name, '| Handle exists:', !!wsHandle);
+
+                // Check if note has fileHandle or workspace has directory handle
+                if (note.fileHandle || wsHandle) {
+                    showToast('Salvando no disco...');
+
+                    // Check for file name change (rename scenario)
+                    // Search in root AND inside children of folders (mounted folders have children)
+                    let fileInWs = (window.workspaceFiles[ws.id] || []).find(f => f.id === note.id);
+
+                    // If not found in root, search inside children of mounted folders
+                    if (!fileInWs) {
+                        for (const folder of (window.workspaceFiles[ws.id] || [])) {
+                            if (folder.children && Array.isArray(folder.children)) {
+                                fileInWs = folder.children.find(f => f.id === note.id);
+                                if (fileInWs) break;
+                            }
+                        }
+                    }
+
+                    const oldFilename = fileInWs ? fileInWs.name : null;
+                    const newFilename = (title || 'Sem título').replace(/[^a-zA-Z0-9À-ÿ\s-_]/g, '') + '.md';
+                    const isRename = oldFilename && oldFilename !== newFilename;
+
+                    console.log('[Editor] Old filename:', oldFilename, '| New filename:', newFilename, '| Is rename:', isRename);
+
+                    if (isRename && wsHandle) {
+                        // RENAME: Create new file, delete old, update references
+                        try {
+                            // 1. Create new file with new name
+                            const newHandle = await wsHandle.getFileHandle(newFilename, { create: true });
+                            await FSHandler.saveFile(newHandle, content);
+
+                            // 2. Delete old file
+                            await wsHandle.removeEntry(oldFilename);
+
+                            // 3. Update references
+                            if (fileInWs) {
+                                fileInWs.name = newFilename;
+                                fileInWs.handle = newHandle;
+                            }
+                            note.fileHandle = newHandle;
+
+                            console.log('[Editor] File renamed successfully:', oldFilename, '->', newFilename);
+                            showToast('Arquivo renomeado e salvo no disco!');
+                        } catch (e) {
+                            console.error('[Editor] Error renaming file:', e);
+                            showToast('Erro ao renomear arquivo: ' + e.message);
+                        }
+                    } else {
+                        // NORMAL SAVE: Just update content
+                        const filename = oldFilename || newFilename;
+                        console.log('[Editor] Filename to save:', filename);
+
+                        const freshHandle = await FSHandler.getFileHandle(ws.id, filename);
+                        console.log('[Editor] Fresh handle resolved:', !!freshHandle);
+
+                        if (freshHandle) {
+                            const success = await FSHandler.saveFile(freshHandle, content);
+                            if (success) {
+                                showToast('Arquivo atualizado no disco!');
+                                note.fileHandle = freshHandle;
+                            }
+                        } else {
+                            console.warn('[Editor] Could not resolve fresh handle for note:', note.id);
+                            showToast('Reconecte a pasta para salvar no disco.');
+                        }
+                    }
+                }
+            } else {
+                console.log('[Editor] Note has no location - saving to localStorage only');
             }
         }
     }
     showToast('Nota salva com sucesso');
     saveData(); // Persist changes
     saveCanvasLayout();
+
+    // Update original content to current (so button becomes disabled again)
+    window.originalNoteTitle = document.getElementById('modal-title-input').value;
+    window.originalNoteContent = document.getElementById('modal-textarea').value;
+    updateSaveButtonState();
 }
 
 function quickSaveNote() {
@@ -168,7 +408,7 @@ function quickSaveNote() {
         category: 'Geral',
         date: new Date().toISOString()
     };
-    notes.push(newNote);
+    window.notes.push(newNote);
     renderNotes();
     titleInput.value = '';
     contentInput.value = '';
@@ -178,68 +418,107 @@ function quickSaveNote() {
 }
 
 function deleteCurrentNote() {
-    debugger; // For devtools if needed
-    console.log('deleteCurrentNote triggered', currentNoteId);
+    if (!window.currentNoteId) return;
 
-    if (!currentNoteId) return;
-
-    // Find note
-    const note = notes.find(n => n.id === currentNoteId);
+    const note = window.notes.find(n => n.id === window.currentNoteId);
     if (!note) {
         console.error('Note not found in memory');
         return;
     }
 
-    console.log('Note found:', note);
-
-    // Try to resolve Workspace linkage
+    // Try to find workspace linkage
     let wsId = null;
     let fileId = null;
+    let fileExistsInWorkspace = false;
 
     // 1. Explicit Location
     if (note.location && note.location.workspaceId) {
         wsId = note.location.workspaceId;
-        fileId = note.id; // Assumption: note.id === file.id
+        // Check if file actually exists in workspaceFiles
+        const file = window.workspaceFiles[wsId]?.find(f => f.id === note.id);
+        if (file) {
+            fileId = file.id;
+            fileExistsInWorkspace = true;
+        }
     }
 
     // 2. Implicit Location (Search in all workspaces)
-    if (!wsId) {
-        // Try to find a file with matching ID in any workspace
-        for (const w of workspaces) {
-            const f = workspaceFiles[w.id]?.find(file => file.id === note.id);
+    if (!fileExistsInWorkspace) {
+        for (const w of window.workspaces) {
+            const f = window.workspaceFiles[w.id]?.find(file => file.id === note.id);
             if (f) {
                 wsId = w.id;
                 fileId = f.id;
-                console.log('Found implicit workspace linkage:', wsId, fileId);
+                fileExistsInWorkspace = true;
                 break;
             }
         }
     }
 
-    if (wsId && fileId) {
-        console.log('Attempting triggerDeleteFile', wsId, fileId);
-        if (typeof triggerDeleteFile === 'function') {
-            triggerDeleteFile(wsId, fileId);
-
-            // IMPORTANT: We need to react to the modal closure to close the editor IF deleted.
-            // Currently triggerDeleteFile just shows modal.
-            // The modal callback `confirmDeleteAction` does the heavy lifting.
-            // We can listen/hook or just rely on global state?
-            // If we rely on global state, `confirmDeleteAction` needs to know it should potentially close the editor.
-            // We can check if `currentNoteId` matches the deleted file.
-            return;
-        } else {
-            console.error('triggerDeleteFile is not a function');
+    // 3. Check by fileHandle match
+    if (!fileExistsInWorkspace && note.fileHandle) {
+        for (const w of window.workspaces) {
+            const f = window.workspaceFiles[w.id]?.find(file => file.handle === note.fileHandle);
+            if (f) {
+                wsId = w.id;
+                fileId = f.id;
+                fileExistsInWorkspace = true;
+                break;
+            }
         }
     }
 
-    // Fallback: Memory Only
-    console.log('No workspace link found. Using fallback deletion.');
-    if (confirm('Excluir esta nota rápida permanentemente?')) {
-        notes = notes.filter(n => n.id !== currentNoteId);
-        saveData();
-        closePreview();
-        renderNotes();
-        showToast('Nota excluída.');
+    // Use triggerDeleteFile if file exists in workspace, otherwise use triggerDeleteNote for virtual notes
+    if (fileExistsInWorkspace && typeof triggerDeleteFile === 'function') {
+        triggerDeleteFile(wsId, fileId);
+    } else {
+        // Virtual note - use the same modal but customized
+        triggerDeleteNote(note);
     }
 }
+
+// Modal for virtual notes (notes without workspace file linkage)
+let pendingDeleteNoteId = null;
+
+function triggerDeleteNote(note) {
+    pendingDeleteNoteId = note.id;
+
+    const modal = document.getElementById('delete-modal');
+    const nameEl = document.getElementById('delete-filename');
+    const deleteDiskBtn = document.getElementById('btn-delete-disk');
+
+    if (nameEl) nameEl.innerText = note.title || 'Nota sem título';
+
+    // Hide "Delete from disk" for virtual notes (they don't have files)
+    if (deleteDiskBtn) {
+        deleteDiskBtn.style.display = 'none';
+    }
+
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+
+function confirmDeleteNoteAction() {
+    if (!pendingDeleteNoteId) return;
+
+    const noteId = pendingDeleteNoteId;
+
+    // Remove from notes
+    window.notes = window.notes.filter(n => n.id !== noteId);
+
+    // Clean up canvas positions
+    if (typeof canvasState !== 'undefined' && canvasState.positions) {
+        delete canvasState.positions[noteId];
+        if (typeof saveCanvasLayout === 'function') saveCanvasLayout();
+    }
+
+    saveData();
+    closePreview();
+    renderNotes();
+    closeDeleteModal();
+    pendingDeleteNoteId = null;
+    showToast('Nota excluída.');
+}
+

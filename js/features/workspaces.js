@@ -1,5 +1,8 @@
 // --- WORKSPACE MANAGER ENGINE ---
 
+let pendingDeleteWsId = null;
+let pendingDeleteFileId = null;
+
 function openWorkspaceManager() {
     document.getElementById('workspace-modal').classList.remove('hidden');
     document.getElementById('workspace-modal').classList.add('flex');
@@ -46,9 +49,15 @@ function submitNewWorkspace() {
         date: new Date().toISOString()
     });
     workspaceFiles[newId] = [];
-    saveData(); // Persist changes
+
+    // Auto-selecionar o novo workspace
+    currentWorkspaceId = newId;
+    console.log('[Workspace] Created and selected workspace:', newId, name);
+
+    saveData();
     renderWorkspaces();
-    showToast('Workspace criado com sucesso');
+    renderExplorer(newId);
+    showToast(`Workspace "${name}" criado e selecionado!`);
 
     document.getElementById('new-workspace-modal').classList.add('hidden');
     document.getElementById('new-workspace-modal').classList.remove('flex');
@@ -103,19 +112,8 @@ function switchWorkspace(id) {
     currentWorkspaceId = id;
     // Persist
     saveData();
-    renderExplorer(id); // Changed wsId to id to match function parameter
-
-    // If we just deleted the note that is currently open in the editor, close it
-    // NOTE: The variables 'currentNoteId', 'fileId', 'closePreview', 'renderNotes', and 'closeDeleteModal'
-    // are not defined in the provided code snippet or are out of context for 'switchWorkspace'.
-    // This block seems to belong to a file deletion function.
-    // However, following the instruction to insert it as provided.
-    if (currentNoteId && currentNoteId === fileId) {
-        closePreview();
-        renderNotes(); // Update grid if needed
-    }
-
-    closeDeleteModal();
+    renderExplorer(id);
+    renderWorkspaces();
     showToast(`Workspace alterado para ${workspaces.find(w => w.id === id).name}`);
 }
 
@@ -269,6 +267,13 @@ async function handleImport(type) {
     document.getElementById('import-modal').classList.add('hidden');
     document.getElementById('import-modal').classList.remove('flex');
 
+    // Verificar se há workspace selecionado
+    if (!currentWorkspaceId) {
+        showToast('Selecione um workspace primeiro');
+        console.warn('[Workspace] No workspace selected for import');
+        return;
+    }
+
     try {
         if (type === 'file') {
             const [handle] = await window.showOpenFilePicker();
@@ -278,12 +283,13 @@ async function handleImport(type) {
         } else if (type === 'folder') {
             const handle = await window.showDirectoryPicker();
             if (handle) {
+                console.log('[Workspace] Importing folder:', handle.name, 'to workspace:', currentWorkspaceId);
                 await addFolderToWorkspace(currentWorkspaceId, handle);
             }
         }
     } catch (e) {
         if (e.name !== 'AbortError') {
-            console.error(e);
+            console.error('[Workspace] Import error:', e);
             showToast('Erro na importação: ' + e.message);
         }
     }
@@ -308,21 +314,102 @@ async function addFileToWorkspace(wsId, handle) {
 }
 
 async function addFolderToWorkspace(wsId, handle) {
-    const newFolder = {
-        id: Date.now(),
-        name: handle.name,
-        type: 'folder',
-        size: '-',
-        status: 'visible',
-        locked: false,
-        handle: handle,
-        isMount: true // Mark as a mounted folder
-    };
+    try {
+        // Registrar handle no FSHandler para acesso em saveCurrentNote
+        FSHandler.handles[wsId] = handle;
 
-    workspaceFiles[wsId].push(newFolder);
-    saveData();
-    renderExplorer(wsId);
-    showToast(`Pasta "${handle.name}" vinculada!`);
+        // Salvar handle para persistência (usando wsId como chave para restauração correta)
+        if (typeof HandleStore !== 'undefined' && HandleStore.save) {
+            await HandleStore.save(String(wsId), handle, 'directory');
+        }
+
+        // Ler todos os arquivos da pasta
+        const files = [];
+        for await (const entry of handle.values()) {
+            if (entry.kind === 'file') {
+                const file = await entry.getFile();
+                const fileId = Date.now() + Math.floor(Math.random() * 10000);
+
+                files.push({
+                    id: fileId,
+                    name: entry.name,
+                    type: 'file',
+                    size: file.size,
+                    status: 'visible',
+                    locked: false,
+                    handle: entry,
+                    lastModified: file.lastModified
+                });
+
+                // Se for arquivo .md, carregar como nota com o MESMO ID do arquivo
+                if (entry.name.endsWith('.md') || entry.name.endsWith('.markdown')) {
+                    try {
+                        const content = await file.text();
+                        const title = entry.name.replace(/\.(md|markdown)$/, '');
+
+                        // Verificar se nota já existe
+                        const existingNote = notes.find(n => n.title === title && n.location?.workspaceId === wsId);
+                        if (!existingNote) {
+                            notes.push({
+                                id: fileId, // SAME ID as file!
+                                title: title,
+                                content: content,
+                                category: 'Local',
+                                date: new Date().toISOString(),
+                                location: {
+                                    workspaceId: wsId,
+                                    folderId: fileId
+                                },
+                                fileHandle: entry
+                            });
+                        }
+                    } catch (e) {
+                        console.warn(`[Workspace] Failed to load note ${entry.name}:`, e);
+                    }
+                }
+            } else if (entry.kind === 'directory') {
+                files.push({
+                    id: Date.now() + Math.random(),
+                    name: entry.name,
+                    type: 'folder',
+                    size: '-',
+                    status: 'visible',
+                    locked: false,
+                    handle: entry
+                });
+            }
+        }
+
+        // Adicionar pasta principal ao workspace (com arquivos como children)
+        const newFolder = {
+            id: Date.now(),
+            name: handle.name,
+            type: 'folder',
+            size: '-',
+            status: 'visible',
+            locked: false,
+            handle: handle,
+            isMount: true,
+            children: files
+        };
+
+        workspaceFiles[wsId].push(newFolder);
+
+        // NÃO adicionar arquivos separadamente - eles já estão em children
+
+        saveData();
+        renderExplorer(wsId);
+        renderNotes();
+
+        const fileCount = files.filter(f => f.type === 'file').length;
+        const noteCount = files.filter(f => f.name.endsWith('.md') || f.name.endsWith('.markdown')).length;
+        showToast(`Pasta "${handle.name}" vinculada! ${fileCount} arquivos, ${noteCount} notas carregadas.`);
+
+        console.log(`[Workspace] Folder "${handle.name}" added with ${fileCount} files and ${noteCount} notes`);
+    } catch (e) {
+        console.error('[Workspace] Error adding folder:', e);
+        showToast('Erro ao adicionar pasta: ' + e.message);
+    }
 }
 
 function formatSize(bytes) {
@@ -331,4 +418,111 @@ function formatSize(bytes) {
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+// --- DELETE LOGIC ---
+function triggerDeleteFile(wsId, fileId) {
+    const file = workspaceFiles[wsId].find(f => f.id === fileId);
+    if (!file) return;
+
+    pendingDeleteWsId = wsId;
+    pendingDeleteFileId = fileId;
+
+    const modal = document.getElementById('delete-modal');
+    const nameEl = document.getElementById('delete-filename');
+    const deleteDiskBtn = document.getElementById('btn-delete-disk');
+
+    if (nameEl) nameEl.innerText = file.name;
+
+    // Only show "Delete from disk" for local files with handles
+    if (deleteDiskBtn) {
+        deleteDiskBtn.style.display = file.handle ? 'flex' : 'none';
+    }
+
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+
+function closeDeleteModal() {
+    const modal = document.getElementById('delete-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+    pendingDeleteWsId = null;
+    pendingDeleteFileId = null;
+}
+
+async function confirmDeleteAction(action) {
+    // Check if this is a virtual note deletion (from editor, not workspace)
+    if (typeof pendingDeleteNoteId !== 'undefined' && pendingDeleteNoteId !== null) {
+        if (typeof confirmDeleteNoteAction === 'function') {
+            confirmDeleteNoteAction();
+        }
+        return;
+    }
+
+    if (pendingDeleteWsId === null || pendingDeleteFileId === null) return;
+
+    const wsId = pendingDeleteWsId;
+    const fileId = pendingDeleteFileId;
+    const fileIndex = workspaceFiles[wsId].findIndex(f => f.id === fileId);
+
+    if (fileIndex === -1) {
+        closeDeleteModal();
+        return;
+    }
+
+
+    const file = workspaceFiles[wsId][fileIndex];
+
+    if (action === 'disk' && file.handle) {
+        try {
+            // Find parent handle if possible or use FSHandler
+            // For now, let's assume we need to delete from the mounted workspace
+            const workspace = workspaces.find(w => w.id === wsId);
+            const wsHandle = FSHandler.handles[wsId];
+
+            if (wsHandle) {
+                const success = await FSHandler.deleteFile(wsHandle, file.name);
+                if (!success) {
+                    showToast('Não foi possível excluir do disco.');
+                    return;
+                }
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('Erro ao excluir do disco.');
+            return;
+        }
+    }
+
+    // Remove from UI/State
+    workspaceFiles[wsId].splice(fileIndex, 1);
+
+    // Also remove from notes array if exists
+    const noteIndex = notes.findIndex(n => n.id === fileId);
+    if (noteIndex > -1) {
+        notes.splice(noteIndex, 1);
+    }
+
+    // Clean up canvas positions
+    if (typeof canvasState !== 'undefined' && canvasState.positions) {
+        delete canvasState.positions[fileId];
+        if (typeof saveCanvasLayout === 'function') saveCanvasLayout();
+    }
+
+    // If it was the current open note, close the editor
+    if (typeof currentNoteId !== 'undefined' && currentNoteId === fileId) {
+        if (typeof closePreview === 'function') closePreview();
+        if (typeof renderNotes === 'function') renderNotes();
+    }
+
+    saveData();
+    renderExplorer(wsId);
+    closeDeleteModal();
+    showToast(action === 'disk' ? 'Arquivo excluído permanentemente' : 'Arquivo removido do workspace');
+
 }

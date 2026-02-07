@@ -1,0 +1,40 @@
+# Cromva - Arquivos ignorados pelo Git
+
+# Dependências
+node_modules/
+package-lock.json
+
+# Logs e Cache
+*.log
+npm-debug.log*
+.cache/
+.tmp/
+
+# Playwright
+playwright-report/
+test-results/
+.playwright/
+
+# IDEs e Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Dados de desenvolvimento
+*.bak
+*.backup
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Ambiente
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/

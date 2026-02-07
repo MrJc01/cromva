@@ -175,3 +175,61 @@ function removeCustomEngine(id) {
         showToast("Motor removido");
     }
 }
+
+// --- ADVANCED SETTINGS LOGIC ---
+function renderAdvancedSettings() {
+    const configTextarea = document.getElementById('system-config-json');
+    if (configTextarea) {
+        const systemData = {
+            notes: notes.length,
+            workspaces: workspaces.length,
+            settings: window.cromvaSettings,
+            version: '1.0.0'
+        };
+        configTextarea.value = JSON.stringify(systemData, null, 2);
+    }
+}
+
+function toggleAutoAddFolder() {
+    const toggle = document.getElementById('toggle-auto-add');
+    if (!toggle) return;
+
+    const knob = toggle.querySelector('div');
+    const isEnabled = toggle.classList.contains('bg-blue-600');
+
+    if (isEnabled) {
+        toggle.classList.remove('bg-blue-600');
+        toggle.classList.add('bg-zinc-700');
+        knob.classList.remove('right-0.5');
+        knob.classList.add('left-0.5');
+        knob.classList.remove('bg-white');
+        knob.classList.add('bg-zinc-400');
+    } else {
+        toggle.classList.remove('bg-zinc-700');
+        toggle.classList.add('bg-blue-600');
+        knob.classList.remove('left-0.5');
+        knob.classList.add('right-0.5');
+        knob.classList.remove('bg-zinc-400');
+        knob.classList.add('bg-white');
+    }
+
+    showToast(isEnabled ? 'Auto-adicionar desativado' : 'Auto-adicionar ativado');
+}
+
+function saveSystemConfig() {
+    const configTextarea = document.getElementById('system-config-json');
+    if (!configTextarea) return;
+
+    try {
+        const parsed = JSON.parse(configTextarea.value);
+        if (parsed.settings) {
+            window.cromvaSettings = parsed.settings;
+            saveSettings();
+        }
+        showToast('Configuração salva! Recarregando...');
+        setTimeout(() => location.reload(), 1000);
+    } catch (e) {
+        showToast('JSON inválido: ' + e.message);
+    }
+}
+

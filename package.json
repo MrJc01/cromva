@@ -1,0 +1,24 @@
+{
+  "name": "cromva",
+  "version": "1.0.0",
+  "description": "Cromva - Modern Note-taking Application",
+  "main": "index.html",
+  "scripts": {
+    "test": "node scripts/e2e/run-tests.js",
+    "test:browser": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:debug": "npx playwright test --debug",
+    "serve": "npx http-server -p 8080 -c-1"
+  },
+  "keywords": [
+    "notes",
+    "markdown",
+    "file-system"
+  ],
+  "author": "Cromva Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "http-server": "^14.1.1"
+  }
+}

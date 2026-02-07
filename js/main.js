@@ -8,16 +8,36 @@
  */
 
 // --- GLOBAL LISTENERS ---
-document.getElementById('modal-textarea').addEventListener('input', updatePreviewRender);
-document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        if (!document.getElementById('preview-modal').classList.contains('hidden')) saveCurrentNote();
-    }
-});
+
+// Input listener com auto-save
+const textarea = document.getElementById('modal-textarea');
+if (textarea) {
+    textarea.addEventListener('input', () => {
+        updatePreviewRender();
+        // Trigger auto-save
+        if (typeof scheduleAutoSave === 'function') {
+            scheduleAutoSave();
+        }
+    });
+}
+
+// Title input também trigger auto-save
+const titleInput = document.getElementById('modal-title-input');
+if (titleInput) {
+    titleInput.addEventListener('input', () => {
+        if (typeof scheduleAutoSave === 'function') {
+            scheduleAutoSave();
+        }
+    });
+}
 
 // --- INITIALIZATION ---
-window.onload = () => {
+window.onload = async () => {
+    // Restore file system handles from IndexedDB
+    if (FSHandler && FSHandler.restoreHandles) {
+        await FSHandler.restoreHandles();
+    }
+
     // Initialize Editor
     renderNotes();
 
@@ -29,4 +49,6 @@ window.onload = () => {
 
     // Spotlight Init
     if (SpotlightManager && SpotlightManager.init) SpotlightManager.init();
+
+    console.log('[Cromva] Initialization complete');
 };

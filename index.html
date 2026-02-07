@@ -5,6 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cromva | OS</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/1999/xlink%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>">
+    <script>
+        // Silence Tailwind CDN production warning
+        if (window.location.host !== 'localhost' && window.location.host !== '127.0.0.1') {
+            // This is a hack because the CDN script logs it aggressively
+        }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
@@ -223,7 +231,7 @@
                             class="hidden sm:inline">Sem local</span>
                     </button>
                     <div class="w-px h-4 bg-zinc-800 mx-1"></div>
-                    <button onclick="saveCurrentNote()"
+                    <button id="btn-save-note" onclick="saveCurrentNote()" title="Salvar alterações"
                         class="p-2 text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 rounded-md transition-colors"><i
                             data-lucide="save" class="w-4 h-4"></i></button>
                     <button onclick="toggleFullscreen()"
@@ -766,27 +774,6 @@
         </div>
     </div>
 
-    <!-- Modules -->
-    <script src="js/core/state.js"></script>
-    <script src="js/core/fs_handler.js"></script>
-    <script src="js/utils/helpers.js"></script>
-
-    <!-- Independent Features -->
-    <script src="js/spotlight.js"></script>
-
-    <!-- UI & Navigation -->
-    <script src="js/ui/navigation.js"></script>
-
-    <!-- Features -->
-    <script src="js/features/editor.js"></script>
-    <script src="js/features/graph.js"></script>
-    <script src="js/features/canvas.js"></script>
-    <script src="js/features/workspaces.js"></script>
-    <script src="js/features/settings.js"></script>
-    <script src="js/features/location_picker.js"></script>
-
-    <!-- Main Entry Point -->
-    <script src="js/main.js"></script>
     <!-- Location Picker Modal -->
     <div id="location-picker-modal"
         class="fixed inset-0 bg-black/80 z-[80] hidden items-center justify-center backdrop-blur-sm animate__animated animate__fadeIn animate__faster">
@@ -819,6 +806,97 @@
             </div>
         </div>
     </div>
+
+    <!-- Core Modules -->
+    <script src="js/core/constants.js"></script>
+    <script src="js/core/config.js"></script>
+    <script src="js/core/events.js"></script>
+    <script src="js/core/state.js"></script>
+    <script src="js/core/cromva_state.js"></script>
+    <script src="js/core/handle_store.js"></script>
+    <script src="js/core/fs_handler.js"></script>
+    <script src="js/core/file_cache.js"></script>
+    <script src="js/core/file_watcher.js"></script>
+    <script src="js/core/data_manager.js"></script>
+    <script src="js/core/offline.js"></script>
+    <script src="js/core/error_handler.js"></script>
+    <script src="js/core/module_registry.js"></script>
+    <script src="js/core/compression.js"></script>
+    <script src="js/core/file_format.js"></script>
+    <script src="js/core/editor_namespace.js"></script>
+    <script src="js/core/workspace_manager.js"></script>
+    <script src="js/utils/helpers.js"></script>
+    <script src="js/utils/logger.js"></script>
+    <script src="js/utils/performance.js"></script>
+    <script src="js/utils/diagnostics.js"></script>
+    <script src="js/utils/session_recorder.js"></script>
+    <script src="js/utils/telemetry.js"></script>
+    <script src="js/utils/sorter.js"></script>
+    <script src="js/utils/search.js"></script>
+    <script src="js/utils/markdown_parser.js"></script>
+
+    <!-- Independent Features -->
+    <script src="js/spotlight.js"></script>
+
+    <!-- UI & Navigation -->
+    <script src="js/ui/navigation.js"></script>
+    <script src="js/ui/keyboard.js"></script>
+    <script src="js/ui/modals.js"></script>
+    <script src="js/ui/components.js"></script>
+    <script src="js/ui/context_menu.js"></script>
+    <script src="js/ui/theme.js"></script>
+    <script src="js/ui/animations.js"></script>
+    <script src="js/ui/breadcrumb.js"></script>
+    <script src="js/ui/connection.js"></script>
+    <script src="js/ui/file_preview.js"></script>
+    <script src="js/ui/onboarding.js"></script>
+    <script src="js/ui/workspace_ui.js"></script>
+    <script src="js/ui/storage_info.js"></script>
+
+    <!-- Features -->
+    <script src="js/features/editor.js"></script>
+    <script src="js/features/graph.js"></script>
+    <script src="js/features/canvas.js"></script>
+    <script src="js/features/workspaces.js"></script>
+    <script src="js/features/settings.js"></script>
+    <script src="js/features/location_picker.js"></script>
+    <script src="js/features/undo_redo.js"></script>
+    <script src="js/features/line_counter.js"></script>
+    <script src="js/features/toolbar.js"></script>
+    <script src="js/features/find_replace.js"></script>
+    <script src="js/features/focus_mode.js"></script>
+    <script src="js/features/favorites.js"></script>
+    <script src="js/features/markdown_preview.js"></script>
+    <script src="js/features/multi_select.js"></script>
+    <script src="js/features/image_drop.js"></script>
+    <script src="js/features/recent_locations.js"></script>
+    <script src="js/features/path_preview.js"></script>
+    <script src="js/features/folder_navigation.js"></script>
+    <script src="js/features/folder_creator.js"></script>
+    <script src="js/features/batch_selection.js"></script>
+    <script src="js/features/editor_renderer.js"></script>
+    <script src="js/features/picker_unified.js"></script>
+
+    <!-- Main Entry Point -->
+    <script src="js/main.js"></script>
+    <script src="scripts/debug.js"></script>
+    <script src="js/utils/debug_panel.js"></script>
+
+    <!-- Test Scripts (Development) -->
+    <script src="scripts/runner.js"></script>
+    <script src="scripts/code_standards.js"></script>
+    <script src="scripts/bug_tracker.js"></script>
+    <script src="scripts/tests/test-state.js"></script>
+    <script src="scripts/tests/test-editor.js"></script>
+    <script src="scripts/tests/test-fs.js"></script>
+    <script src="scripts/tests/test-workspaces.js"></script>
+    <script src="scripts/tests/test-location.js"></script>
+    <script src="scripts/tests/test-navigation.js"></script>
+    <script src="scripts/tests/test-spotlight.js"></script>
+    <script src="scripts/tests/test-settings.js"></script>
+    <script src="scripts/tests/test-graph.js"></script>
+    <script src="scripts/tests/test-canvas.js"></script>
+    <script src="scripts/tests/test-integration.js"></script>
 
 </body>
 
