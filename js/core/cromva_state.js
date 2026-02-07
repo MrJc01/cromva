@@ -174,12 +174,22 @@ const CromvaState = {
 
     /**
      * Sincroniza estado interno para globais
+     * IMPORTANTE: Não sobrescreve dados existentes carregados por state.js
      */
     _syncToGlobals() {
-        window.notes = this._state.notes || [];
-        window.workspaces = this._state.workspaces || [];
-        window.workspaceFiles = this._state.workspaceFiles || {};
-        window.currentWorkspaceId = this._state.currentWorkspaceId;
+        // Only sync if our internal state has data OR globals are empty
+        if (this._state.notes?.length > 0 || !window.notes?.length) {
+            window.notes = this._state.notes || [];
+        }
+        if (this._state.workspaces?.length > 0 || !window.workspaces?.length) {
+            window.workspaces = this._state.workspaces || [];
+        }
+        if (Object.keys(this._state.workspaceFiles || {}).length > 0 || !Object.keys(window.workspaceFiles || {}).length) {
+            window.workspaceFiles = this._state.workspaceFiles || {};
+        }
+        if (this._state.currentWorkspaceId || !window.currentWorkspaceId) {
+            window.currentWorkspaceId = this._state.currentWorkspaceId;
+        }
     },
 
     /**

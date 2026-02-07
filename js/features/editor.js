@@ -83,11 +83,15 @@ function renderNotes() {
     if (!grid) return;
     grid.innerHTML = '';
 
-    // Get notes from memory
-    let allItems = [...window.notes];
+    // Get notes from memory - FILTER by current workspace
+    const wsId = window.currentWorkspaceId;
+    let allItems = window.notes.filter(n => {
+        // Show notes that belong to current workspace OR have no location (legacy notes)
+        if (!n.location) return !wsId; // Show locationless notes only when no workspace selected
+        return n.location.workspaceId === wsId;
+    });
 
     // Add files from current workspace that are .md files and not already in notes
-    const wsId = window.currentWorkspaceId;
     if (wsId && window.workspaceFiles[wsId]) {
         const wsFiles = window.workspaceFiles[wsId].filter(f =>
             f.type === 'file' &&

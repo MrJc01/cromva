@@ -12,7 +12,8 @@ function saveData() {
     const data = {
         notes: window.notes,
         workspaces: window.workspaces,
-        workspaceFiles: window.workspaceFiles
+        workspaceFiles: window.workspaceFiles,
+        currentWorkspaceId: window.currentWorkspaceId
     };
     console.log('[State] Saving data to localStorage...', data.workspaces.length, 'workspaces');
     localStorage.setItem('cromvaData', JSON.stringify(data));
@@ -26,41 +27,56 @@ function loadData() {
             window.notes = data.notes || [];
             window.workspaces = data.workspaces || [];
             window.workspaceFiles = data.workspaceFiles || {};
+            window.currentWorkspaceId = data.currentWorkspaceId || null;
             console.log('[State] Data loaded from localStorage');
         } catch (e) {
             console.error('[State] Failed to load data', e);
             initDefaultData();
+            return;
         }
     } else {
         initDefaultData();
+        return;
+    }
+
+    // If no workspaces exist, create default
+    if (window.workspaces.length === 0) {
+        console.log('[State] No workspaces found, creating default...');
+        initDefaultData();
+        return;
     }
 
     // Ensure currentWorkspaceId is valid
-    if (window.workspaces.length > 0) {
-        // Default to first workspace if currentWorkspaceId is invalid
-        const current = window.workspaces.find(ws => ws.id === window.currentWorkspaceId);
-        if (!current) {
-            window.currentWorkspaceId = window.workspaces[0].id;
-        }
+    const current = window.workspaces.find(ws => ws.id === window.currentWorkspaceId);
+    if (!current) {
+        window.currentWorkspaceId = window.workspaces[0].id;
+        console.log('[State] Set currentWorkspaceId to first workspace:', window.currentWorkspaceId);
     }
 }
 
 function initDefaultData() {
     console.log('[State] Initializing default data...');
-    // Default Welcome Note
+
+    // Default Workspace (create first so we have the ID)
+    window.workspaces = [
+        { id: 1, name: 'Start', desc: 'Workspace padrão', color: 'blue', date: new Date().toISOString() }
+    ];
+
+    window.currentWorkspaceId = 1;
+
+    // Default Welcome Note (with location pointing to Start workspace)
     window.notes = [
         {
             id: 1,
             title: 'Bem-vindo ao Cromva',
             content: '# Cromva OS\n\nEste é o seu novo sistema operacional de produtividade.\n\n- [x] Dados salvos localmente\n- [ ] Sincronização em nuvem (Em breve)\n\nCrie novas notas, workspaces ou abra pastas locais!',
             category: 'Sistema',
-            date: new Date().toISOString()
+            date: new Date().toISOString(),
+            location: {
+                workspaceId: 1,
+                folderId: null
+            }
         }
-    ];
-
-    // Default Workspace
-    window.workspaces = [
-        { id: 1, name: 'Principal', desc: 'Workspace padrão', color: 'blue', date: new Date().toISOString() }
     ];
 
     window.workspaceFiles = {

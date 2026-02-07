@@ -7,7 +7,7 @@ function openWorkspaceManager() {
     document.getElementById('workspace-modal').classList.remove('hidden');
     document.getElementById('workspace-modal').classList.add('flex');
     renderWorkspaces();
-    renderExplorer(currentWorkspaceId);
+    renderExplorer(window.currentWorkspaceId);
 }
 
 function closeWorkspaceManager() {
@@ -51,7 +51,7 @@ function submitNewWorkspace() {
     workspaceFiles[newId] = [];
 
     // Auto-selecionar o novo workspace
-    currentWorkspaceId = newId;
+    window.currentWorkspaceId = newId;
     console.log('[Workspace] Created and selected workspace:', newId, name);
 
     saveData();
@@ -68,6 +68,8 @@ function renderWorkspaces() {
     if (!list) return;
     list.innerHTML = '';
 
+    console.log('[Workspaces] Rendering workspaces:', window.workspaces?.length, 'items');
+
     const colorMap = {
         'blue': { border: 'border-blue-500', bg: 'bg-blue-500/10', text: 'text-blue-500', px: 'bg-blue-500' },
         'emerald': { border: 'border-emerald-500', bg: 'bg-emerald-500/10', text: 'text-emerald-500', px: 'bg-emerald-500' },
@@ -75,8 +77,8 @@ function renderWorkspaces() {
         'purple': { border: 'border-purple-500', bg: 'bg-purple-500/10', text: 'text-purple-500', px: 'bg-purple-500' }
     };
 
-    workspaces.forEach(ws => {
-        const isSelected = ws.id === currentWorkspaceId;
+    (window.workspaces || []).forEach(ws => {
+        const isSelected = ws.id === window.currentWorkspaceId;
         const colors = colorMap[ws.color] || colorMap['blue'];
 
         const card = document.createElement('div');
@@ -109,11 +111,12 @@ function renderWorkspaces() {
 }
 
 function switchWorkspace(id) {
-    currentWorkspaceId = id;
+    window.currentWorkspaceId = id;
     // Persist
     saveData();
     renderExplorer(id);
     renderWorkspaces();
+    renderNotes(); // Refresh notes for new workspace
     showToast(`Workspace alterado para ${workspaces.find(w => w.id === id).name}`);
 }
 
@@ -268,7 +271,7 @@ async function handleImport(type) {
     document.getElementById('import-modal').classList.remove('flex');
 
     // Verificar se há workspace selecionado
-    if (!currentWorkspaceId) {
+    if (!window.currentWorkspaceId) {
         showToast('Selecione um workspace primeiro');
         console.warn('[Workspace] No workspace selected for import');
         return;
@@ -278,13 +281,13 @@ async function handleImport(type) {
         if (type === 'file') {
             const [handle] = await window.showOpenFilePicker();
             if (handle) {
-                await addFileToWorkspace(currentWorkspaceId, handle);
+                await addFileToWorkspace(window.currentWorkspaceId, handle);
             }
         } else if (type === 'folder') {
             const handle = await window.showDirectoryPicker();
             if (handle) {
-                console.log('[Workspace] Importing folder:', handle.name, 'to workspace:', currentWorkspaceId);
-                await addFolderToWorkspace(currentWorkspaceId, handle);
+                console.log('[Workspace] Importing folder:', handle.name, 'to workspace:', window.currentWorkspaceId);
+                await addFolderToWorkspace(window.currentWorkspaceId, handle);
             }
         }
     } catch (e) {
