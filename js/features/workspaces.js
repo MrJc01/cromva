@@ -1220,87 +1220,73 @@ async function importWorkspaceFromZip(file) {
 
         if (metadata.type !== 'cromva-workspace') {
             throw new Error('Arquivo inválido: não é um workspace Cromva.');
-// 3. Extract Files
-let count = 0;
-const filePromises = [];
-
-zip.forEach((relativePath, entry) => {
-    if (entry.dir) return; // Directories are handled implicitly by file paths
-    if (relativePath.endsWith('cromva.json')) return;
-    if (relativePath.includes('__MACOSX')) return; // ignore mac junk
-
-    filePromises.push(async () => {
-        const name = relativePath.split('/').pop();
-        const textContent = await entry.async('text');
-
-        // Determine if it's a note or other file
-        if (name.endsWith('.md')) {
-            // Import as Note
-            const noteId = Date.now() + Math.floor(Math.random() * 100000);
-
-            // 1. Add to window.notes (for logic/search)
-            window.notes.push({
-                id: noteId,
-                title: name.replace('.md', ''),
-                content: textContent,
-                category: 'Importado',
-                date: new Date().toISOString(),
-                location: {
-                    workspaceId: newId,
-                    folderId: null // Root
-                },
-                type: 'md'
-                // IMPORTANT: No fileHandle, so it counts as Virtual
-            });
-
-            // 2. ALSO Add to window.workspaceFiles (for Explorer visibility)
-            // This ensures it shows up in the "Physical" list if we are simulating a full restore
-            // OR we let getWorkspaceFiles pick it up as virtual.
-
-            // PROBLEM: getWorkspaceFiles puts ALL virtual notes into "LocalStorage" folder.
-            // If the user expects to see the file structure they exported, we need to respect that.
-            // But we can't create real file handles.
-
-            // SOLUTION: Add it as a "Virtual File" in workspaceFiles, similar to .board
-            // capable of holding content but marked isVirtual.
-            window.workspaceFiles[newId].push({
-                name: name,
-                type: 'file',
-                content: textContent,
-                isVirtual: true,
-                lastModified: Date.now()
-            });
-
-            count++;
         }
-        else if (name.endsWith('.board')) {
-            // Import as Virtual File Entry
-            window.workspaceFiles[newId].push({
-                name: name,
-                type: 'file',
-                content: textContent,
-                isVirtual: true,
-                lastModified: Date.now()
-            });
-            count++;
-        }
-        else {
-            // Other files
-            window.workspaceFiles[newId].push({
-                name: name,
-                type: 'file',
-                content: textContent,
-                isVirtual: true,
-                lastModified: Date.now()
-            });
-            count++;
-        }
-    });
-});
+        // 3. Extract Files
+        let count = 0;
+        const filePromises = [];
+
+        zip.forEach((relativePath, entry) => {
+            if (entry.dir) return; // Directories are handled implicitly by file paths
+            if (relativePath.endsWith('cromva.json')) return;
+            if (relativePath.includes('__MACOSX')) return; // ignore mac junk
+
+            filePromises.push(async () => {
+                const name = relativePath.split('/').pop();
+                const textContent = await entry.async('text');
+
+                // Determine if it's a note or other file
+                if (name.endsWith('.md')) {
+                    // Import as Note
+                    const noteId = Date.now() + Math.floor(Math.random() * 100000);
+
+                    // 1. Add to window.notes (for logic/search)
+                    window.notes.push({
+                        id: noteId,
+                        title: name.replace('.md', ''),
+                        content: textContent,
+                        category: 'Importado',
+                        date: new Date().toISOString(),
+                        location: {
+                            workspaceId: newId,
+                            folderId: null // Root
+                        },
+                        type: 'md'
+                        // IMPORTANT: No fileHandle, so it counts as Virtual
+                    });
+
+                    // 2. ALSO Add to window.workspaceFiles (for Explorer visibility)
+                    // This ensures it shows up in the "Physical" list if we are simulating a full restore
+                    // OR we let getWorkspaceFiles pick it up as virtual.
+
+                    // PROBLEM: getWorkspaceFiles puts ALL virtual notes into "LocalStorage" folder.
+                    // If the user expects to see the file structure they exported, we need to respect that.
+                    // But we can't create real file handles.
+
+                    // SOLUTION: Add it as a "Virtual File" in workspaceFiles, similar to .board
+                    // capable of holding content but marked isVirtual.
+                    window.workspaceFiles[newId].push({
+                        name: name,
+                        type: 'file',
+                        content: textContent,
+                        isVirtual: true,
+                        lastModified: Date.now()
+                    });
+
+                    count++;
+                }
+                else if (name.endsWith('.board')) {
+                    // Import as Virtual File Entry
+                    window.workspaceFiles[newId].push({
+                        name: name,
+                        type: 'file',
+                        content: textContent,
+                        isVirtual: true,
+                        lastModified: Date.now()
+                    });
+                    count++;
                 }
                 else {
-                    // Unknown/Other file type
-                    // Store as virtual file anyway?
+                    // Other files
                     window.workspaceFiles[newId].push({
                         name: name,
                         type: 'file',
@@ -1312,6 +1298,7 @@ zip.forEach((relativePath, entry) => {
                 }
             });
         });
+
 
         await Promise.all(filePromises.map(p => p()));
 

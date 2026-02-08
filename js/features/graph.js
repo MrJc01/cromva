@@ -29,7 +29,14 @@ function initGraph() {
         return '#71717a';
     };
 
-    graphNodes = notes.map(n => ({
+    // Filter notes by current workspace
+    const currentWsId = window.currentWorkspaceId;
+    const filteredNotes = notes.filter(n => {
+        if (!currentWsId) return true; // Show all if no workspace selected (or root)
+        return n.location && n.location.workspaceId === currentWsId;
+    });
+
+    graphNodes = filteredNotes.map(n => ({
         id: n.id, title: n.title, category: n.category, x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 8, color: getColor(n.category), vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4
     }));
 

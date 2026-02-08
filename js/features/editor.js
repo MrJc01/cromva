@@ -109,6 +109,18 @@ function renderNotes() {
     if (!grid) return;
     grid.innerHTML = '';
 
+    // 0. "New Note" Card (Canvas Style)
+    const newNoteCard = document.createElement('div');
+    newNoteCard.className = 'bg-zinc-800/30 hover:bg-zinc-800/80 border-2 border-dashed border-zinc-700/50 hover:border-zinc-500 rounded-xl p-6 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all group h-48 animate__animated animate__fadeIn';
+    newNoteCard.onclick = () => quickCreateAndOpenNote();
+    newNoteCard.innerHTML = `
+        <div class="w-12 h-12 rounded-full bg-zinc-800 group-hover:bg-zinc-700 flex items-center justify-center transition-all shadow-lg group-hover:scale-110">
+            <i data-lucide="plus" class="w-6 h-6 text-zinc-400 group-hover:text-white"></i>
+        </div>
+        <span class="text-zinc-500 group-hover:text-zinc-200 font-medium text-sm transition-colors">Nova Nota</span>
+    `;
+    grid.appendChild(newNoteCard);
+
     // Get notes from memory - FILTER by current workspace AND visibility
     const wsId = window.currentWorkspaceId;
     let allItems = window.notes.filter(n => isNoteVisible(n));
@@ -586,25 +598,36 @@ async function saveCurrentNote() {
     updateSaveButtonState();
 }
 
-function quickSaveNote() {
-    const titleInput = document.getElementById('quick-title');
-    const contentInput = document.getElementById('quick-content');
-    if (!titleInput.value.trim() && !contentInput.value.trim()) return;
+function quickCreateAndOpenNote() {
     const newNote = {
         id: Date.now(),
-        title: titleInput.value || 'Nota Sem Título',
-        content: contentInput.value || '',
+        title: '', // Empty title to prompt user
+        content: '',
         category: 'Geral',
         date: new Date().toISOString(),
         location: window.currentWorkspaceId ? { workspaceId: window.currentWorkspaceId } : undefined
     };
+
     window.notes.push(newNote);
+    window.currentNoteId = newNote.id; // Set current immediately
+
+    // Persist
+    saveData();
     renderNotes();
-    titleInput.value = '';
-    contentInput.value = '';
-    showToast('Nota criada rapidamente');
-    saveData(); // Persist changes
-    if (document.getElementById('view-canvas').classList.contains('active')) initCanvas();
+
+    // Open immediately
+    openPreview(newNote.id);
+
+    // Auto-focus title
+    setTimeout(() => {
+        const titleInput = document.getElementById('modal-title-input');
+        if (titleInput) {
+            titleInput.focus();
+            titleInput.select();
+        }
+    }, 100);
+
+    showToast('Nova nota criada');
 }
 
 function deleteCurrentNote() {

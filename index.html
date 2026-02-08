@@ -109,27 +109,7 @@
         <!-- View 1: Grid de Notas -->
         <section id="view-grid"
             class="view-section active h-full overflow-y-auto p-6 custom-scrollbar animate__animated animate__fadeIn">
-            <div class="max-w-3xl mx-auto mb-12">
-                <div
-                    class="glass p-1 rounded-xl shadow-2xl border border-zinc-800 group transition-all duration-300 focus-within:ring-1 focus-within:ring-zinc-700">
-                    <div class="p-4">
-                        <input id="quick-title" type="text" placeholder="Título da nova ideia..."
-                            class="w-full bg-transparent text-lg font-bold mb-2 focus:outline-none hidden group-focus-within:block text-white placeholder-zinc-600">
-                        <textarea id="quick-content" placeholder="Criar uma nota..."
-                            class="w-full bg-transparent resize-none focus:outline-none text-zinc-300 placeholder-zinc-500 text-sm leading-relaxed"
-                            rows="1"></textarea>
-                    </div>
-                    <div
-                        class="hidden group-focus-within:flex justify-between items-center px-4 pb-3 pt-1 border-t border-zinc-800/50 animate__animated animate__fadeIn">
-                        <button onclick="triggerImportMenu()"
-                            class="p-1.5 hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-100 transition-colors"
-                            title="Importar Conteúdo"><i data-lucide="plus-circle" class="w-4 h-4"></i></button>
-                        <button onclick="quickSaveNote()"
-                            class="px-4 py-1.5 bg-zinc-100 hover:bg-white text-zinc-950 rounded-md text-xs font-semibold shadow-lg transition-all transform active:scale-95">Criar
-                            Nota</button>
-                    </div>
-                </div>
-            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-20" id="notes-grid">
             </div>
         </section>
