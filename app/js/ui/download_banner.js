@@ -17,11 +17,11 @@
 
     const os = detectOS();
 
-    // Determine download link (Latest Release page)
+    // Determine download link (Releases page)
     const downloads = {
-        'Windows': 'https://github.com/MrJc01/cromva/releases/latest',
-        'macOS': 'https://github.com/MrJc01/cromva/releases/latest',
-        'Linux': 'https://github.com/MrJc01/cromva/releases/latest',
+        'Windows': 'https://github.com/MrJc01/cromva/releases',
+        'macOS': 'https://github.com/MrJc01/cromva/releases',
+        'Linux': 'https://github.com/MrJc01/cromva/releases',
     };
 
     setTimeout(() => {
