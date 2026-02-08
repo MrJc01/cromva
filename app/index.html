@@ -98,6 +98,9 @@
                 <button onclick="openWorkspaceManager()"
                     class="p-2 hover:bg-zinc-800 rounded-md text-zinc-400 hover:text-zinc-100 transition-colors"><i
                         data-lucide="folder-open" class="w-4.5 h-4.5"></i></button>
+                <button onclick="openReportModal()" title="Reportar Problema"
+                    class="p-2 hover:bg-zinc-800 rounded-md text-zinc-400 hover:text-amber-400 transition-colors"><i
+                        data-lucide="bug" class="w-4.5 h-4.5"></i></button>
                 <button onclick="openSettings()"
                     class="p-2 hover:bg-zinc-800 rounded-md text-zinc-400 hover:text-zinc-100 transition-colors"><i
                         data-lucide="settings" class="w-4.5 h-4.5"></i></button>
@@ -1047,6 +1050,7 @@
     <script src="js/ui/workspace_ui.js"></script>
     <script src="js/ui/storage_info.js"></script>
     <script src="js/ui/download_banner.js"></script>
+    <script src="js/ui/report_issue.js"></script>
 
     <!-- Features -->
     <script src="js/features/editor.js"></script>
@@ -1123,6 +1127,48 @@
                 <button onclick="CanvasList.confirmCreateBoard()"
                     class="px-4 py-2 text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors shadow-lg shadow-emerald-900/20">Criar
                     Quadro</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Issue Modal -->
+    <div id="report-modal"
+        class="fixed inset-0 bg-black/80 z-[100] hidden items-center justify-center backdrop-blur-sm animate__animated animate__fadeIn animate__faster"
+        onclick="closeReportModal()">
+        <div class="glass p-6 rounded-xl w-full max-w-md border border-zinc-700 shadow-2xl animate__animated animate__zoomIn animate__faster"
+            onclick="event.stopPropagation()">
+            <h3 class="text-lg font-bold text-zinc-100 mb-1 flex items-center gap-2">
+                <i data-lucide="bug" class="w-5 h-5 text-amber-500"></i> Reportar Problema
+            </h3>
+            <p class="text-xs text-zinc-500 mb-4">Descreva o problema encontrado. Um email será aberto com as
+                informações.</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label
+                        class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-1 block">Assunto</label>
+                    <input id="report-subject" type="text" placeholder="Ex: Erro ao abrir nota"
+                        class="w-full bg-zinc-900 border border-zinc-700 rounded-lg py-2 px-3 text-sm text-zinc-200 focus:outline-none focus:border-amber-500 transition-all">
+                </div>
+                <div>
+                    <label
+                        class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-1 block">Descrição</label>
+                    <textarea id="report-description" rows="4" placeholder="Descreva o problema com detalhes..."
+                        class="w-full bg-zinc-900 border border-zinc-700 rounded-lg py-2 px-3 text-sm text-zinc-200 focus:outline-none focus:border-amber-500 transition-all resize-none"></textarea>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-zinc-400">
+                    <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                    <span>Para anexar prints, tire um screenshot e cole no email.</span>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button onclick="closeReportModal()"
+                    class="px-3 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-md transition-colors">Cancelar</button>
+                <button onclick="submitReport()"
+                    class="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-md text-xs font-semibold shadow-lg shadow-amber-900/20 transition-all flex items-center gap-2">
+                    <i data-lucide="send" class="w-3.5 h-3.5"></i> Enviar por Email
+                </button>
             </div>
         </div>
     </div>
