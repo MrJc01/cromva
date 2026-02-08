@@ -11,7 +11,8 @@
     "serve": "vite",
     "tauri": "tauri",
     "dev": "tauri dev",
-    "build": "vite build && tauri build"
+    "build": "vite build && tauri build",
+    "build:web": "vite build"
   },
   "keywords": [
     "notes",

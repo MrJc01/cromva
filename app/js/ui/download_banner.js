@@ -17,11 +17,11 @@
 
     const os = detectOS();
 
-    // Determine download link placeholders (replace with actual URLs)
+    // Determine download link (Latest Release page)
     const downloads = {
-        'Windows': 'https://github.com/MrJc01/cromva/releases/latest/download/cromva_x64_en-US.msi',
-        'macOS': 'https://github.com/MrJc01/cromva/releases/latest/download/cromva.app.tar.gz',
-        'Linux': 'https://github.com/MrJc01/cromva/releases/latest/download/cromva_amd64.deb',
+        'Windows': 'https://github.com/MrJc01/cromva/releases/latest',
+        'macOS': 'https://github.com/MrJc01/cromva/releases/latest',
+        'Linux': 'https://github.com/MrJc01/cromva/releases/latest',
     };
 
     setTimeout(() => {
