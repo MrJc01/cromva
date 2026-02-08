@@ -83,6 +83,11 @@
             opacity: 1;
         }
 
+        /* Canvas View Specific */
+        #view-canvas.active {
+            display: flex;
+        }
+
         .modal-fullscreen {
             max-width: 100% !important;
             max-height: 100vh !important;

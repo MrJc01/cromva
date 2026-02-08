@@ -371,13 +371,86 @@ async function openPreview(id, authenticated = false) {
     textarea.addEventListener('input', updateSaveButtonState);
 }
 
+window.openNoteByHandle = async function (handle) {
+    if (!handle) return;
+
+    // Check if basic file handle or our wrapper
+    const fileHandle = handle.handle || handle;
+
+    try {
+        let file, content, name;
+
+        // Validar se é um FileSystemFileHandle real
+        if (fileHandle && typeof fileHandle.getFile === 'function') {
+            file = await fileHandle.getFile();
+            content = await file.text();
+            name = file.name.replace('.md', '');
+        } else if (fileHandle && fileHandle.name) {
+            // Caso seja apenas um objeto { name: ... } (ex: de referência salva)
+            // Tentar encontrar no workspace atual
+            console.warn('[Editor] Handle inválido, tentando recuperar pelo nome:', fileHandle.name);
+            name = fileHandle.name.replace('.md', '');
+
+            // Tentar buscar conteúdo se estiver na memória ou workspace
+            const foundFile = window.workspaceFiles[window.currentWorkspaceId]?.find(f => f.name === fileHandle.name);
+            if (foundFile && foundFile.handle) {
+                fileHandle = foundFile.handle; // Atualizar para handle real
+                file = await fileHandle.getFile();
+                content = await file.text();
+            } else {
+                showToast(`Arquivo "${name}" não encontrado ou sem permissão.`, 'error');
+                return;
+            }
+        } else {
+            throw new Error('Handle inválido ou inexistente');
+        }
+
+        // Check if already open/exists
+        let existing = window.notes.find(n => n.title === name); // weak check
+
+        const note = {
+            id: existing ? existing.id : Date.now(),
+            title: name,
+            content: content || '',
+            category: 'Referência',
+            date: new Date().toISOString(), // Fallback date
+            fileHandle: fileHandle,
+            // location: ... // tricky if strict
+        };
+
+        if (!existing) {
+            window.notes.push(note);
+            renderNotes();
+        } else {
+            // Update content?
+            existing.content = content;
+            existing.fileHandle = fileHandle;
+        }
+
+        // Open
+        openPreview(note.id);
+
+    } catch (e) {
+        console.error('[Editor] Error opening note by handle:', e);
+        showToast('Erro ao abrir nota referenciada: ' + e.message, 'error');
+    }
+};
+
 function closePreview() {
     document.getElementById('preview-modal').classList.add('hidden');
     document.getElementById('preview-modal').classList.remove('flex');
     if (isFullscreen) toggleFullscreen();
     renderNotes();
     // Atualizar conteúdo do canvas se estiver aberto
-    if (document.getElementById('view-canvas').classList.contains('active')) initCanvas();
+    // Verifica se CanvasManager existe e reinicializa se necessário
+    if (document.getElementById('view-canvas').classList.contains('active') && typeof CanvasManager !== 'undefined') {
+        // CanvasManager.init() might be too heavy here if it creates new canvas. 
+        // We probably just need to ensure it's running or re-render.
+        // But the error was initCanvas is not defined, which implies legacy code.
+        // Let's assume re-init is what was intended or just ignore if canvas is already there.
+        if (!CanvasManager.canvas) CanvasManager.init();
+        else CanvasManager.canvas.requestRenderAll();
+    }
 }
 
 function updatePreviewRender() {

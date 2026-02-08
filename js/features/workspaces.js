@@ -222,6 +222,7 @@ function switchWorkspace(id) {
 }
 
 // Função auxiliar para obter arquivos do workspace (Virtual ou Físico)
+window.getWorkspaceFiles = getWorkspaceFiles;
 function getWorkspaceFiles(wsId) {
     const physicalFiles = window.workspaceFiles[wsId] || [];
 
@@ -256,6 +257,37 @@ function getWorkspaceFiles(wsId) {
     // Retornar arquivos físicos + pasta virtual
     return [...physicalFiles, virtualFolder];
 }
+
+window.refreshAllWorkspaces = async function () {
+    console.log('[Workspaces] Refreshing all workspaces...');
+    const workspaces = window.workspaces || [];
+
+    for (const ws of workspaces) {
+        const handle = FSHandler.handles[ws.id];
+        if (handle) {
+            try {
+                // Verify permission first
+                const perm = await FSHandler.checkPermission(handle, 'read');
+                if (perm === 'granted') {
+                    const files = await FSHandler.readDirectory(handle);
+                    window.workspaceFiles[ws.id] = files;
+                    console.log(`[Workspaces] Refreshed workspace ${ws.id}: ${files.length} files`);
+                } else {
+                    console.warn(`[Workspaces] Skipping refresh for ${ws.id}: No permission (${perm})`);
+                }
+            } catch (e) {
+                console.error(`[Workspaces] Failed to refresh workspace ${ws.id}:`, e);
+            }
+        }
+    }
+
+    // Re-render current explorer if open
+    if (window.currentWorkspaceId) {
+        renderExplorer(window.currentWorkspaceId);
+    }
+    // Update global state
+    saveData();
+};
 
 function renderExplorer(wsId) {
     const workspace = window.workspaces.find(w => w.id === wsId);
@@ -419,6 +451,16 @@ async function openFile(wsId, file) {
         } catch (e) {
             console.error(e);
             showToast('Erro ao ler arquivo local');
+            return;
+        }
+
+        // Special handling for .board files
+        if (file.name.endsWith('.board')) {
+            if (typeof BoardPersistence !== 'undefined') {
+                console.log('[Workspaces] Opening board:', file.name);
+                // Initialize persistence with this file handle
+                BoardPersistence.init(file.handle);
+            }
             return;
         }
     } else {

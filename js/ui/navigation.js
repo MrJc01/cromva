@@ -22,7 +22,9 @@ function switchView(viewId) {
     }
 
     if (viewId === 'canvas') {
-        setTimeout(initCanvas, 50);
+        if (typeof CanvasManager !== 'undefined') {
+            setTimeout(() => CanvasManager.resizeCanvas(), 50);
+        }
     }
 }
 

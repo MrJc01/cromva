@@ -36,13 +36,34 @@ window.onload = async () => {
     // Restore file system handles from IndexedDB
     if (FSHandler && FSHandler.restoreHandles) {
         await FSHandler.restoreHandles();
+
+        // Refresh file lists from disk
+        if (window.refreshAllWorkspaces) {
+            await window.refreshAllWorkspaces();
+        }
     }
 
     // Initialize Editor
     renderNotes();
 
-    // Initialize Canvas Logic (listeners)
-    if (typeof setupCanvasListeners === 'function') setupCanvasListeners();
+    // Initialize Canvas Logic (Fabric.js)
+    if (typeof CanvasManager !== 'undefined') {
+        CanvasManager.init();
+    }
+    if (typeof CanvasList !== 'undefined') {
+        CanvasList.init();
+    }
+    if (typeof CanvasUI !== 'undefined') {
+        CanvasUI.init();
+    }
+    if (typeof CanvasNavigator !== 'undefined') {
+        CanvasNavigator.init();
+    }
+
+    // Auto-load Welcome Board if testing
+    if (typeof BoardPersistence !== 'undefined') {
+        BoardPersistence.init(null);
+    }
 
     // Icons
     if (window.lucide) lucide.createIcons();

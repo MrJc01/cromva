@@ -161,7 +161,7 @@ const FSHandler = {
 
             if (entry.kind === 'file') {
                 // Filter for likely text/markdown files or allow all
-                if (entry.name.endsWith('.md') || entry.name.endsWith('.txt') || entry.name.endsWith('.json') || entry.name.endsWith('.js') || entry.name.endsWith('.html') || entry.name.endsWith('.css')) {
+                if (entry.name.endsWith('.md') || entry.name.endsWith('.txt') || entry.name.endsWith('.json') || entry.name.endsWith('.js') || entry.name.endsWith('.html') || entry.name.endsWith('.css') || entry.name.endsWith('.board')) {
                     files.push({
                         id: id,
                         name: entry.name,
@@ -174,9 +174,7 @@ const FSHandler = {
                     });
                 }
             } else if (entry.kind === 'directory') {
-                // Shallow read or recursive? For now shallow + manual recursion later could be better for perf,
-                // but let's do 1 level deep or just mark as folder.
-                // For this prototype, we'll just list the folder itself.
+                // Directories should be marked as folders
                 files.push({
                     id: id,
                     name: entry.name,
@@ -187,8 +185,6 @@ const FSHandler = {
                     handle: entry,
                     path: parentPath + entry.name + '/'
                 });
-
-                // TODO: Recursive read if we want deep tree
             }
         }
         return files;
@@ -199,7 +195,7 @@ const FSHandler = {
 
         // Robustness: if it's a plain object (from localStorage), it won't have methods
         if (typeof fileHandle.createWritable !== 'function') {
-            console.error('[FSHandler] Invalid fileHandle: missing createWritable. Use getFileHandle to re-resolve.');
+            console.error('[FSHandler] Invalid handle for saving:', fileHandle);
             return false;
         }
 
@@ -207,9 +203,10 @@ const FSHandler = {
             const writable = await fileHandle.createWritable();
             await writable.write(content);
             await writable.close();
+            console.log(`[FSHandler] File "${fileHandle.name}" saved.`);
             return true;
         } catch (err) {
-            console.error('Error saving file:', err);
+            console.error('[FSHandler] Error saving file:', err);
             if (err.name === 'NotAllowedError') {
                 showToast('Permissão de escrita negada pelo navegador.');
             } else {

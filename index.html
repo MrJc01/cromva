@@ -16,6 +16,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+    <script src="js/libs/fabric.min.js"></script>
     <link rel="stylesheet" href="css/index.css">
 </head>
 
@@ -160,25 +161,128 @@
         <!-- View 3: Infinite Canvas (Miro-like) -->
         <section id="view-canvas"
             class="view-section h-full relative animate__animated animate__fadeIn overflow-hidden bg-[#18181b]">
-            <div id="infinite-canvas"
-                class="w-[5000px] h-[5000px] relative top-0 left-0 transition-transform duration-75 ease-out">
-                <!-- Itens serão gerados via JS aqui -->
+
+            <!-- Canvas Lists (Dashboard) -->
+            <div id="canvas-dashboard" class="w-full h-full p-8 overflow-y-auto bg-[#09090b] hidden">
+                <div class="max-w-7xl mx-auto">
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 class="text-3xl font-bold text-white mb-2">Meus Quadros</h2>
+                            <p class="text-zinc-400">Gerencie seus projetos visuais infinitos.</p>
+                        </div>
+                    </div>
+
+                    <div id="canvas-list-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <!-- Cards injected by JS -->
+                    </div>
+                </div>
             </div>
 
+            <!-- Canvas Container -->
+            <div class="flex-1 relative overflow-hidden hidden" id="canvas-wrapper">
+                <canvas id="infinite-canvas"></canvas>
+            </div>
+
+            <!-- Right Sidebar (Canvas Tools & Inspector) -->
+            <aside id="canvas-sidebar"
+                class="w-64 glass border-l border-zinc-800 flex flex-col z-20 transition-all duration-300">
+                <div class="p-4 border-b border-zinc-800/50 flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-widest">Ferramentas</h3>
+                    <button onclick="toggleCanvasSidebar()" class="p-1 hover:bg-zinc-800 rounded text-zinc-400">
+                        <i data-lucide="panel-right-close" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Add Items Tab -->
+                <!-- Add Items Tab -->
+                <div id="canvas-tools-panel" class="p-4 grid grid-cols-2 gap-3">
+                    <!-- Select Tool (Default) -->
+                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-pointer hover:bg-zinc-700 transition-colors border border-zinc-700 active-tool"
+                        id="tool-select" onclick="CanvasManager.setTool('select')">
+                        <i data-lucide="mouse-pointer-2" class="w-6 h-6 text-zinc-300"></i>
+                        <span class="text-[10px] text-zinc-300 font-medium">Selecionar</span>
+                    </div>
+
+                    <!-- Pan Tool -->
+                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-pointer hover:bg-zinc-700 transition-colors border border-zinc-700"
+                        id="tool-pan" onclick="CanvasManager.setTool('pan')">
+                        <i data-lucide="hand" class="w-6 h-6 text-zinc-300"></i>
+                        <span class="text-[10px] text-zinc-300 font-medium">Mover</span>
+                    </div>
+
+                    <!-- Note -->
+                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-grab hover:bg-zinc-700 transition-colors border border-zinc-700"
+                        draggable="true" data-type="note" onclick="CanvasUI.addObject('note')">
+                        <i data-lucide="sticky-note" class="w-6 h-6 text-yellow-400"></i>
+                        <span class="text-[10px] text-zinc-300 font-medium">Nota</span>
+                    </div>
+
+                    <!-- Text -->
+                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-grab hover:bg-zinc-700 transition-colors border border-zinc-700"
+                        draggable="true" data-type="text" onclick="CanvasUI.addObject('text')">
+                        <i data-lucide="type" class="w-6 h-6 text-zinc-400"></i>
+                        <span class="text-[10px] text-zinc-300 font-medium">Texto</span>
+                    </div>
+
+                    <!-- Image -->
+                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-grab hover:bg-zinc-700 transition-colors border border-zinc-700"
+                        draggable="true" data-type="image" onclick="CanvasUI.addObject('image')">
+                        <i data-lucide="image" class="w-6 h-6 text-blue-400"></i>
+                        <span class="text-[10px] text-zinc-300 font-medium">Imagem</span>
+                    </div>
+
+                    <!-- Draw -->
+                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-pointer hover:bg-zinc-700 transition-colors border border-zinc-700"
+                        id="tool-draw" onclick="CanvasManager.setTool('draw')">
+                        <i data-lucide="pencil" class="w-6 h-6 text-emerald-400"></i>
+                        <span class="text-[10px] text-zinc-300 font-medium">Desenhar</span>
+                    </div>
+
+                    <!-- Reference -->
+                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-pointer hover:bg-zinc-700 transition-colors border border-zinc-700"
+                        draggable="true" id="tool-reference" onclick="CanvasUI.addReference(100, 100)">
+                        <!-- Fixed pos for click, draggable for drop? -->
+                        <i data-lucide="link" class="w-6 h-6 text-purple-400"></i>
+                        <span class="text-[10px] text-zinc-300 font-medium">Link</span>
+                    </div>
+
+                    <!-- Shape (Square for now) -->
+                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-grab hover:bg-zinc-700 transition-colors border border-zinc-700"
+                        draggable="true" data-type="square" onclick="CanvasUI.addObject('square')">
+                        <i data-lucide="square" class="w-6 h-6 text-red-500"></i>
+                        <span class="text-[10px] text-zinc-300 font-medium">Quadrado</span>
+                    </div>
+                </div>
+
+                <!-- Inspector Panel (Hidden by default) -->
+                <div id="canvas-inspector" class="hidden flex-1 flex-col">
+                    <div class="p-4 border-b border-zinc-800/50 bg-zinc-900/30">
+                        <h4 class="text-xs font-bold text-zinc-100" id="inspector-title">Elemento</h4>
+                    </div>
+                    <div class="p-4 space-y-4 overflow-y-auto custom-scrollbar" id="inspector-content">
+                        <!-- Properties injected here -->
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Floating Controls -->
             <div
                 class="absolute bottom-8 left-1/2 -translate-x-1/2 glass px-4 py-2 rounded-full flex gap-4 shadow-2xl border border-zinc-700 z-20 select-none">
-                <button class="p-2 hover:bg-zinc-700/50 rounded-full text-zinc-400 hover:text-white"
-                    title="Mover (Espaço + Drag)"><i data-lucide="hand" class="w-4 h-4"></i></button>
-                <div class="w-px h-6 bg-zinc-700 my-auto"></div>
-                <button onclick="adjustZoom(-0.1)"
+                <button onclick="CanvasManager.adjustZoom(-0.1)"
                     class="p-2 hover:bg-zinc-700/50 rounded-full text-zinc-400 hover:text-white"><i data-lucide="minus"
                         class="w-4 h-4"></i></button>
                 <span id="zoom-level"
                     class="text-xs text-zinc-500 font-mono my-auto w-12 text-center cursor-pointer hover:text-white"
-                    onclick="resetZoom()">100%</span>
-                <button onclick="adjustZoom(0.1)"
+                    onclick="CanvasManager.resetZoom()">100%</span>
+                <button onclick="CanvasManager.adjustZoom(0.1)"
                     class="p-2 hover:bg-zinc-700/50 rounded-full text-zinc-400 hover:text-white"><i data-lucide="plus"
                         class="w-4 h-4"></i></button>
+            </div>
+
+            <!-- Custom Context Menu -->
+            <div id="canvas-context-menu"
+                class="fixed hidden z-50 glass border border-zinc-700 rounded-lg shadow-2xl min-w-[160px] py-1 animate__animated animate__fadeIn animate__faster">
+                <!-- Items injected by JS -->
             </div>
         </section>
 
@@ -924,7 +1028,6 @@
     <!-- Features -->
     <script src="js/features/editor.js"></script>
     <script src="js/features/graph.js"></script>
-    <script src="js/features/canvas.js"></script>
     <script src="js/features/workspaces.js"></script>
     <script src="js/features/workspace_recovery.js"></script>
     <script src="js/features/settings.js"></script>
@@ -948,6 +1051,12 @@
     <script src="js/features/picker_unified.js"></script>
 
     <!-- Main Entry Point -->
+    <script src="js/features/canvas_manager.js"></script>
+    <script src="js/features/canvas_objects.js"></script>
+    <script src="js/features/canvas_navigator.js"></script>
+    <script src="js/features/canvas_list.js"></script>
+    <script src="js/features/canvas_ui.js"></script>
+    <script src="js/features/board_persistence.js"></script>
     <script src="js/main.js"></script>
     <script src="scripts/debug.js"></script>
     <script src="js/utils/debug_panel.js"></script>
@@ -968,6 +1077,31 @@
     <script src="scripts/tests/test-canvas.js"></script>
     <script src="scripts/tests/test-integration.js"></script>
 
+    <!-- Create Board Modal -->
+    <div id="create-board-modal"
+        class="fixed inset-0 bg-black/80 z-[100] hidden items-center justify-center backdrop-blur-sm animate__animated animate__fadeIn animate__faster">
+        <div
+            class="glass p-6 rounded-xl w-full max-w-md border border-zinc-700 shadow-2xl animate__animated animate__zoomIn animate__faster">
+            <h3 class="text-xl font-bold text-zinc-100 mb-2">Novo Quadro</h3>
+            <p class="text-sm text-zinc-400 mb-6">Dê um nome para o seu novo espaço criativo.</p>
+
+            <div class="mb-6">
+                <label class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-2 block">Nome do
+                    Quadro</label>
+                <input type="text" id="new-board-name"
+                    class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-zinc-200 outline-none focus:border-emerald-500 transition-colors placeholder:text-zinc-600"
+                    placeholder="Ex: Planejamento Q3">
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <button onclick="CanvasList.closeCreateModal()"
+                    class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg transition-colors">Cancelar</button>
+                <button onclick="CanvasList.confirmCreateBoard()"
+                    class="px-4 py-2 text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors shadow-lg shadow-emerald-900/20">Criar
+                    Quadro</button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
