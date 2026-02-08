@@ -264,55 +264,76 @@ const FSHandler = {
 
     async syncFilesToNotes(wsId) {
         const files = window.workspaceFiles[wsId] || [];
-        console.log(`[Sync] Syncing ${files.length} files for workspace ${wsId}`);
+        console.log(`[Sync] Syncing files for workspace ${wsId}`);
 
         let addedCount = 0;
 
-        for (const file of files) {
-            if (file.type !== 'file' || !file.name.endsWith('.md')) continue;
+        // Helper recursive function
+        const processFiles = async (fileList, parentFolderId = null) => {
+            for (const file of fileList) {
+                // If folder, recurse
+                if (file.type === 'folder' && file.children && file.children.length > 0) {
+                    await processFiles(file.children, file.id);
+                    continue;
+                }
 
-            // Check if already in notes (by handle check)
-            const existing = window.notes.find(n => n.fileHandle && n.fileHandle.isSameEntry(file.handle));
-            // Also check by filename if handle comparison fails or isn't possible directly
-            const existingByName = window.notes.find(n => n.location && n.location.workspaceId === wsId && n.location.folderId === file.id);
+                if (file.type !== 'file' || !file.name.endsWith('.md')) continue;
 
-            if (existing || existingByName) {
-                // Determine if we should update content? For now assume memory is fresher IF dirty. 
-                // But this is "Import", so maybe disk is source of truth.
-                // Let's Skip existing for now to avoid overwriting unsaved changes in memory.
-                continue;
+                // Check if already in notes (by handle check)
+                const existing = window.notes.find(n => n.fileHandle && n.fileHandle.isSameEntry(file.handle));
+                // Also check by filename/location
+                const existingByName = window.notes.find(n => n.location && n.location.workspaceId === wsId && n.location.folderId === (parentFolderId || file.id));
+
+                if (existing || existingByName) {
+                    continue;
+                }
+
+                try {
+                    const fileHandle = file.handle;
+                    const fileObj = await fileHandle.getFile();
+                    const content = await fileObj.text();
+
+                    // Extract Title from filename or content
+                    let title = file.name.replace('.md', '');
+                    const match = content.match(/^# (.*)/);
+                    if (match) title = match[1];
+
+                    const newNote = {
+                        id: file.id, // Use file ID to link easier
+                        title: title,
+                        content: content,
+                        category: 'Local',
+                        date: new Date(fileObj.lastModified).toISOString(),
+                        location: {
+                            workspaceId: wsId,
+                            folderId: parentFolderId || (file.type === 'file' ? null : file.id) // If file is in root, folderId null. If in folder, parentFolderId.
+                        },
+                        fileHandle: fileHandle
+                    };
+
+                    // If it was a direct file in root (parentFolderId null), check if the file object itself is its own "folder" ID?
+                    // No, file.id is the ID of the file entry.
+                    // If file is inside a folder, folderId should be the folder's ID.
+                    // If file is in root, folderId is null? Or we use file.id as before?
+                    // The previous logic was: folderId: file.id. That implies file in root -> linked to itself?
+                    // Let's keep logic: if parentFolderId defined (inside folder), use it. If root, use null or explicit?
+                    // Previous code: location: { folderId: file.id } (for root files).
+                    if (parentFolderId) {
+                        newNote.location.folderId = parentFolderId;
+                    } else {
+                        // Standalone file in root
+                        newNote.location.folderId = file.id;
+                    }
+
+                    window.notes.push(newNote);
+                    addedCount++;
+                } catch (err) {
+                    console.error('Error reading file for sync:', file.name, err);
+                }
             }
+        };
 
-            try {
-                const fileHandle = file.handle;
-                const fileObj = await fileHandle.getFile();
-                const content = await fileObj.text();
-
-                // Extract Title from filename or content
-                let title = file.name.replace('.md', '');
-                // Try to find H1 in content
-                const match = content.match(/^# (.*)/);
-                if (match) title = match[1];
-
-                const newNote = {
-                    id: file.id, // Use file ID to link easier
-                    title: title,
-                    content: content,
-                    category: 'Local',
-                    date: new Date(fileObj.lastModified).toISOString(),
-                    location: {
-                        workspaceId: wsId,
-                        folderId: file.id
-                    },
-                    fileHandle: fileHandle // Store handle for saving back
-                };
-
-                notes.push(newNote);
-                addedCount++;
-            } catch (err) {
-                console.error('Error reading file for sync:', file.name, err);
-            }
-        }
+        await processFiles(files);
 
         if (addedCount > 0) {
             console.log(`[Sync] Imported ${addedCount} notes from disk.`);

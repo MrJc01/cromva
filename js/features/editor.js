@@ -115,27 +115,38 @@ function renderNotes() {
 
     // Add files from current workspace that are .md files and not already in notes
     if (wsId && window.workspaceFiles[wsId]) {
-        // Filter visible files
-        const wsFilesVisible = window.workspaceFiles[wsId].filter(f => f.status !== 'hidden');
+        const fileRefs = [];
 
-        const wsFiles = wsFilesVisible.filter(f =>
-            f.type === 'file' &&
-            f.name.endsWith('.md') &&
-            !allItems.some(n => n.id === f.id || (n.location && n.location.folderId === f.id))
-        );
+        // Helper to collect files recursively
+        const collectFiles = (items, parentFolderId = null) => {
+            items.forEach(item => {
+                if (item.status === 'hidden') return;
 
-        wsFiles.forEach(file => {
-            allItems.push({
-                id: file.id,
-                title: file.name.replace('.md', ''),
-                content: '(Clique para carregar do disco)',
-                category: 'Disco',
-                date: new Date().toISOString(),
-                isFileRef: true,  // Mark as file reference (not loaded yet)
-                handle: file.handle,
-                location: { workspaceId: wsId, folderId: file.id }
+                if (item.type === 'folder' && item.children) {
+                    collectFiles(item.children, item.id);
+                } else if (item.type === 'file' && item.name.endsWith('.md')) {
+                    // Check if already loaded as note
+                    const isLoaded = allItems.some(n => n.id === item.id || (n.location && n.location.folderId === (parentFolderId || item.id) && n.title === item.name.replace('.md', '')));
+
+                    if (!isLoaded) {
+                        fileRefs.push({
+                            id: item.id,
+                            title: item.name.replace('.md', ''),
+                            content: '(Arquivo local - Clique para carregar)',
+                            category: parentFolderId ? 'Pasta' : 'Raiz', // Could show folder name but needs lookup
+                            date: new Date().toISOString(), // No date info easily avail without stat
+                            isFileRef: true,
+                            handle: item.handle,
+                            location: { workspaceId: wsId, folderId: parentFolderId || (item.id) }
+                        });
+                    }
+                }
             });
-        });
+        };
+
+        collectFiles(window.workspaceFiles[wsId]);
+
+        fileRefs.forEach(ref => allItems.push(ref));
     }
 
     const sortedNotes = allItems.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -511,7 +522,8 @@ function quickSaveNote() {
         title: titleInput.value || 'Nota Sem Título',
         content: contentInput.value || '',
         category: 'Geral',
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        location: window.currentWorkspaceId ? { workspaceId: window.currentWorkspaceId } : undefined
     };
     window.notes.push(newNote);
     renderNotes();

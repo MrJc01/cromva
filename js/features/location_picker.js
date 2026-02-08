@@ -397,13 +397,13 @@ const LocationPicker = {
             showToast(deleteFromOld ? 'Arquivo movido (virtual).' : 'Arquivo copiado (virtual).');
         }
 
-        // Handle Workspace Files Reference
-        // If it's a direct handle (external), we MUST add the file explicitly to workspaceFiles
-        // so it appears in the list (referencing the file, not the folder)
+        // Handle Workspace Files Reference (Update Memory)
+        const filename = (note.title || 'Sem título').replace(/[^a-zA-Z0-9À-ÿ\s-_]/g, '') + '.md';
+
+        // 1. External Folder (Direct Handle) or Root Addition
         if (directHandle && newFileHandle) {
             if (!window.workspaceFiles[workspaceId]) window.workspaceFiles[workspaceId] = [];
 
-            const filename = (note.title || 'Sem título').replace(/[^a-zA-Z0-9À-ÿ\s-_]/g, '') + '.md';
             const newFileEntry = {
                 id: note.id,
                 name: filename,
@@ -417,13 +417,63 @@ const LocationPicker = {
             };
 
             // Check if already exists to avoid duplicates
-            const existingIdx = window.workspaceFiles[workspaceId].findIndex(f => f.id === note.id);
+            const existingIdx = window.workspaceFiles[workspaceId].findIndex(f => f.id == note.id);
             if (existingIdx >= 0) {
                 window.workspaceFiles[workspaceId][existingIdx] = newFileEntry;
             } else {
                 window.workspaceFiles[workspaceId].push(newFileEntry);
             }
             console.log('[LocationPicker] Added external file reference to workspace');
+        }
+        // 2. Internal Folder Move
+        else if (folderId && newFileHandle) {
+            const wsFiles = window.workspaceFiles[workspaceId] || [];
+            // Find target folder (loose equality for ID)
+            const targetFolder = wsFiles.find(f => f.id == folderId && f.type === 'folder');
+
+            if (targetFolder) {
+                if (!targetFolder.children) targetFolder.children = [];
+
+                const newFileEntry = {
+                    id: note.id,
+                    name: filename,
+                    type: 'file',
+                    size: 'Arquivo', // Placeholder
+                    status: 'visible',
+                    locked: false,
+                    handle: newFileHandle,
+                    lastModified: Date.now()
+                };
+
+                // Remove if exists (to update)
+                const existingIdx = targetFolder.children.findIndex(f => f.id == note.id);
+                if (existingIdx >= 0) {
+                    targetFolder.children[existingIdx] = newFileEntry;
+                } else {
+                    targetFolder.children.push(newFileEntry);
+                }
+                console.log('[LocationPicker] Added file to internal folder:', targetFolder.name);
+            }
+        }
+        // 3. Move to Root (Internal)
+        else if (!folderId && !directHandle && newFileHandle && workspaceId) {
+            const wsFiles = window.workspaceFiles[workspaceId] || [];
+            const newFileEntry = {
+                id: note.id,
+                name: filename,
+                type: 'file',
+                size: 'Arquivo',
+                status: 'visible',
+                locked: false,
+                handle: newFileHandle
+            };
+            // Check if already exists
+            const existingIdx = wsFiles.findIndex(f => f.id == note.id);
+            if (existingIdx >= 0) {
+                wsFiles[existingIdx] = newFileEntry;
+            } else {
+                wsFiles.push(newFileEntry);
+            }
         }
 
         // OLD LOCATION CLEANUP (Only if moving)
@@ -447,13 +497,26 @@ const LocationPicker = {
                     console.log('[LocationPicker] Deleted old file:', oldFilename);
                 }
 
-                // Also remove reference from old workspaceFiles if it was there (and moved to different workspace/location)
-                // If moved within same workspace folder, renderNotes/renderExplorer handles it.
-                // But if moved from "Root" to "External Folder", we need to remove the "Root" reference if it existed as standalone file.
-                if (window.workspaceFiles[this.originalLocation.workspaceId]) {
-                    const oldFileIdx = window.workspaceFiles[this.originalLocation.workspaceId].findIndex(f => f.id === originalNote.id && f.type === 'file');
-                    if (oldFileIdx >= 0) {
-                        window.workspaceFiles[this.originalLocation.workspaceId].splice(oldFileIdx, 1);
+                // Also remove reference from old workspaceFiles if it was there
+                // oldWsFiles is already declared above (line ~433)
+                if (oldWsFiles) {
+                    if (this.originalLocation.folderId) {
+                        // Remove from folder children
+                        const oldFolder = oldWsFiles.find(f => f.id == this.originalLocation.folderId && f.type === 'folder');
+                        if (oldFolder && oldFolder.children) {
+                            const oldChildIdx = oldFolder.children.findIndex(f => f.id == originalNote.id);
+                            if (oldChildIdx >= 0) {
+                                oldFolder.children.splice(oldChildIdx, 1);
+                                console.log('[LocationPicker] Removed old entry from folder children');
+                            }
+                        }
+                    } else {
+                        // Remove from root
+                        const oldFileIdx = oldWsFiles.findIndex(f => f.id == originalNote.id && f.type === 'file');
+                        if (oldFileIdx >= 0) {
+                            oldWsFiles.splice(oldFileIdx, 1);
+                            console.log('[LocationPicker] Removed old entry from root');
+                        }
                     }
                 }
 
