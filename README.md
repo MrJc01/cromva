@@ -1,118 +1,118 @@
 # Cromva
 
-> 🗒️ Modern Note-taking Application with File System Integration
+> 🗒️ Aplicativo de Notas Moderno com Suporte a Desktop e Web
 
-## Features
+[![Versão](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/MrJc01/cromva)
+[![Licença](https://img.shields.io/badge/license-Proprietária-red.svg)](LICENSE)
 
-- 📝 **Markdown Editor** - Full markdown support with live preview
-- 📂 **File System Integration** - Connect local folders via File System Access API
-- 🔍 **Spotlight Search** - Quick search with `Ctrl+K`
-- 📊 **Graph View** - Visualize connections between notes
-- 🎨 **Infinite Canvas** - Organize notes spatially
-- 💾 **Auto-sync** - Automatic save to disk and localStorage
+## ✨ Funcionalidades
 
-## Getting Started
+- 📝 **Editor Markdown** — Suporte completo com preview em tempo real
+- 📂 **Integração com Sistema de Arquivos** — Conecte pastas locais (Web: File System API, Desktop: Tauri)
+- 🔍 **Spotlight Search** — Busca rápida com `Ctrl+K`
+- 📊 **Visualização em Grafo** — Veja conexões entre notas
+- 🎨 **Canvas Infinito** — Organize notas espacialmente
+- 💾 **Auto-sync** — Salvamento automático
+- 📦 **Export/Import** — Backup de workspaces em ZIP
+- 📈 **Analytics** — Estatísticas de produtividade
 
-### Requirements
+## 🚀 Início Rápido
 
-- Modern browser with File System Access API support (Chrome, Edge)
-- Node.js 18+ (for tests)
+### Requisitos
 
-### Running
+- **Web**: Navegador moderno (Chrome, Edge)
+- **Desktop**: [Rust](https://rustup.rs/) + Node.js 18+
 
-Simply open `index.html` in your browser, or use a local server:
+### Instalação
 
 ```bash
+# Clonar repositório
+git clone https://github.com/MrJc01/cromva.git
+cd cromva
+
+# Instalar dependências
 npm install
+```
+
+### Executar
+
+```bash
+# Modo Web (Vite dev server)
 npm run serve
-# Open http://localhost:8080
+# Abrir http://localhost:8080
+
+# Modo Desktop (Tauri)
+npm run dev
 ```
 
-### Running Tests
+### Build para Produção
 
 ```bash
-# Install dependencies
-npm install
-
-# Run all tests (headless)
-npm test
-
-# Run with visible browser
-npm run test:headed
-
-# Debug mode (step-by-step)
-npm run test:debug
+# Gerar executáveis Desktop + Web
+npm run build
 ```
 
-## Project Structure
+## 📁 Estrutura do Projeto
 
 ```
 cromva/
-├── index.html           # Main application
-├── css/
-│   └── index.css        # Styles
-├── js/
-│   ├── core/            # Core modules
-│   │   ├── state.js     # State management & localStorage
-│   │   └── fs_handler.js # File System Access API
-│   ├── features/        # Feature modules
-│   │   ├── editor.js    # Note editor
-│   │   ├── workspaces.js # Workspace management
-│   │   ├── location_picker.js
-│   │   ├── graph.js     # Graph visualization
-│   │   ├── canvas.js    # Infinite canvas
-│   │   └── settings.js
-│   ├── ui/
-│   │   └── navigation.js
-│   ├── utils/
-│   │   └── helpers.js
-│   └── main.js          # Entry point
-├── scripts/             # Testing & tools
-│   ├── runner.js        # Browser test runner
-│   ├── mock-data.js     # Test data
-│   ├── tests/           # Unit tests
-│   └── e2e/             # E2E tests (Playwright)
-└── docs/                # Documentation
+├── app/                    # Código-fonte principal
+│   ├── index.html
+│   ├── css/
+│   └── js/
+│       ├── core/           # Módulos core (state, fs_handler)
+│       ├── features/       # Features (editor, workspaces, canvas)
+│       ├── ui/             # Componentes UI
+│       └── utils/          # Utilitários
+├── src-tauri/              # Backend Tauri (Rust)
+│   ├── tauri.conf.json
+│   └── src/
+├── scripts/                # Testes e ferramentas
+├── vite.config.mjs         # Configuração Vite
+└── package.json
 ```
 
-## Architecture
+## 🏗️ Arquitetura
 
-### Workspace Model
+### Hybrid Deployment
 
-Workspaces are **hybrid containers** that can hold:
-- Virtual notes (stored in localStorage)
-- Linked files (via File System Access API)
+O Cromva roda tanto na **Web** quanto como **App Desktop**:
 
-See [docs/WORKSPACE_ARCHITECTURE.md](docs/WORKSPACE_ARCHITECTURE.md) for details.
+| Feature | Web | Desktop (Tauri) |
+|---------|-----|-----------------|
+| Armazenamento | localStorage + OPFS | Sistema de arquivos nativo |
+| Offline | Service Worker | Sempre offline |
+| Performance | Boa | Excelente |
+| Instalação | Não requer | Instalador (.exe, .deb, .dmg) |
 
-### State Management
-
-All data is persisted to `localStorage`:
-- `cromva-notes` - Note content
-- `cromva-workspaces` - Workspace metadata
-- `cromva-workspaceFiles` - File associations
-- `cromva-settings` - User preferences
-
-## Development
-
-### Console Commands
+### Bridge Pattern
 
 ```javascript
-// Run all tests
-CromvaTest.runAll()
-
-// Toggle debug mode
-CromvaDebug.toggle()
-
-// View current state
-CromvaDebug.showState()
-
-// Generate mock data
-CromvaMock.generateAll()
+// Detectar ambiente
+if (FSHandler.isTauri()) {
+    // Usar APIs nativas via window.Tauri
+} else {
+    // Usar File System Access API do navegador
+}
 ```
 
-### Test Results: 177/177 ✅
+## 🧪 Testes
 
-## License
+```bash
+# Rodar todos os testes
+npm test
 
-MIT
+# Com browser visível
+npm run test:headed
+
+# Modo debug
+npm run test:debug
+```
+
+## 📜 Licença
+
+Este software é propriedade de **Crom.run**. Veja [LICENSE](LICENSE) para detalhes.
+
+---
+
+Feito com ❤️ pela equipe Crom.run

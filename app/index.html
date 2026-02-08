@@ -19,6 +19,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
     <script src="js/libs/fabric.min.js"></script>
     <link rel="stylesheet" href="css/index.css">
+    <!-- Load Tauri Bridge (only resolves correctly when running in Tauri/Vite) -->
+    <script type="module" src="/js/tauri_bridge.js" onerror="window.Tauri = { isDesktop: false };"></script>
 </head>
 
 <body class="h-screen flex text-sm">
@@ -1044,6 +1046,7 @@
     <script src="js/ui/onboarding.js"></script>
     <script src="js/ui/workspace_ui.js"></script>
     <script src="js/ui/storage_info.js"></script>
+    <script src="js/ui/download_banner.js"></script>
 
     <!-- Features -->
     <script src="js/features/editor.js"></script>

@@ -4,8 +4,14 @@ const FSHandler = {
     // Map internal workspace ID -> FileSystemDirectoryHandle
     handles: {},
 
+    // Check if running in Tauri Desktop
+    isTauri() {
+        return window.Tauri && window.Tauri.isDesktop === true;
+    },
+
     isSupported() {
-        return 'showDirectoryPicker' in window;
+        // Tauri always supported; else check browser API
+        return this.isTauri() || 'showDirectoryPicker' in window;
     },
 
     /**

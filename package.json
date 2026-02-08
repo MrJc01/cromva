@@ -8,7 +8,10 @@
     "test:browser": "npx playwright test",
     "test:headed": "npx playwright test --headed",
     "test:debug": "npx playwright test --debug",
-    "serve": "npx http-server -p 8080 -c-1"
+    "serve": "vite",
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "vite build && tauri build"
   },
   "keywords": [
     "notes",
@@ -19,6 +22,14 @@
   "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
     "@playwright/test": "^1.40.0",
-    "http-server": "^14.1.1"
+    "@tauri-apps/cli": "^2.10.0",
+    "http-server": "^14.1.1",
+    "vite": "^7.3.1"
+  },
+  "dependencies": {
+    "@tauri-apps/plugin-dialog": "^2.6.0",
+    "@tauri-apps/plugin-fs": "^2.4.5",
+    "@tauri-apps/plugin-os": "^2.3.2",
+    "@tauri-apps/plugin-shell": "^2.3.5"
   }
 }
