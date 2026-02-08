@@ -64,12 +64,23 @@ function renderCategoryList(filter = '') {
         ? categories.filter(c => c.name.toLowerCase().includes(filter.toLowerCase()))
         : categories;
 
-    // Get current note's category
+    // Get current note's category (handle String or Array)
     const currentNote = window.notes?.find(n => n.id === window.currentNoteId);
-    const currentCategory = currentNote?.category || 'Sistema';
+    let currentCategories = [];
+
+    if (currentNote && currentNote.category) {
+        if (Array.isArray(currentNote.category)) {
+            currentCategories = currentNote.category;
+        } else {
+            // Legacy string support
+            currentCategories = [currentNote.category];
+        }
+    } else {
+        currentCategories = ['Sistema']; // Default
+    }
 
     list.innerHTML = filtered.map(cat => {
-        const isSelected = cat.name === currentCategory;
+        const isSelected = currentCategories.includes(cat.name);
         const colorClasses = {
             'blue': 'bg-blue-500',
             'emerald': 'bg-emerald-500',
@@ -112,25 +123,40 @@ function filterCategories(value) {
     renderCategoryList(value);
 }
 
-// Select a category
+// Select a category (Toggle)
 function selectCategory(categoryName) {
     if (!window.currentNoteId) return;
 
     const noteIndex = window.notes.findIndex(n => n.id === window.currentNoteId);
     if (noteIndex > -1) {
-        window.notes[noteIndex].category = categoryName;
+        let currentCats = window.notes[noteIndex].category;
+
+        // Normalize to array
+        if (!Array.isArray(currentCats)) {
+            currentCats = currentCats ? [currentCats] : [];
+        }
+
+        // Toggle
+        if (currentCats.includes(categoryName)) {
+            currentCats = currentCats.filter(c => c !== categoryName);
+        } else {
+            currentCats.push(categoryName);
+        }
+
+        // Save back
+        window.notes[noteIndex].category = currentCats;
 
         // Update UI
-        document.getElementById('current-category-label').textContent = categoryName;
+        updateCategoryLabel();
+        renderCategoryList(document.getElementById('category-search')?.value || '');
 
-        // Close dropdown
-        document.getElementById('category-dropdown').classList.add('hidden');
-        document.removeEventListener('click', closeCategoryDropdownOnOutside);
+        // Don't close dropdown to allow multiple selection
+        // document.getElementById('category-dropdown').classList.add('hidden'); // Removed
 
         // Save
         if (typeof saveData === 'function') saveData();
 
-        showToast(`Categoria alterada para "${categoryName}"`);
+        // No toast for every click, too noisy
     }
 }
 
@@ -167,7 +193,12 @@ function updateCategoryLabel() {
     const note = window.notes?.find(n => n.id === window.currentNoteId);
     const label = document.getElementById('current-category-label');
     if (label && note) {
-        label.textContent = note.category || 'Sistema';
+        let cats = note.category;
+        if (!cats) cats = ['Sistema'];
+        if (!Array.isArray(cats)) cats = [cats];
+
+        if (cats.length === 0) label.textContent = 'Sem Categoria';
+        else label.textContent = cats.join(', ');
     }
 }
 
