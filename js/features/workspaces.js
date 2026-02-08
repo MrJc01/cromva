@@ -384,16 +384,30 @@ function renderExplorer(wsId) {
             <div class="col-span-2 text-zinc-500 font-mono text-[10px]">
                 ${file.size || '-'}
             </div>
-            <div class="col-span-2 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onclick="event.stopPropagation(); toggleFileVisibility(${wsId}, '${file.id}')" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-100" title="${file.status === 'visible' ? 'Ocultar' : 'Mostrar'}">
-                    <i data-lucide="${file.status === 'visible' ? 'eye' : 'eye-off'}" class="w-3.5 h-3.5"></i>
+            <div class="col-span-2 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity relative">
+                <button onclick="event.stopPropagation(); toggleFileMenu(${wsId}, '${file.id}')" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-100 transition-colors">
+                    <i data-lucide="more-vertical" class="w-3.5 h-3.5"></i>
                 </button>
-                <button onclick="event.stopPropagation(); toggleFileLock(${wsId}, '${file.id}')" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-100" title="${file.locked ? 'Destrancar' : 'Trancar'}">
-                    <i data-lucide="${file.locked ? 'unlock' : 'lock'}" class="w-3.5 h-3.5"></i>
-                </button>
-                <button onclick="event.stopPropagation(); triggerDeleteFile(${wsId}, '${file.id}')" class="p-1 hover:bg-red-900/30 rounded text-zinc-400 hover:text-red-400" title="Excluir">
-                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                </button>
+                
+                <div id="file-menu-${file.id}" class="file-menu-dropdown hidden absolute right-0 top-full mt-1 w-32 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                    <button onclick="event.stopPropagation(); renameFile(${wsId}, '${file.id}')" 
+                        class="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 flex items-center gap-2">
+                        <i data-lucide="pencil" class="w-3 h-3"></i> Renomear
+                    </button>
+                    <button onclick="event.stopPropagation(); toggleFileVisibility(${wsId}, '${file.id}')" 
+                        class="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 flex items-center gap-2">
+                        <i data-lucide="${file.status === 'visible' ? 'eye-off' : 'eye'}" class="w-3 h-3"></i> ${file.status === 'visible' ? 'Ocultar' : 'Mostrar'}
+                    </button>
+                    <button onclick="event.stopPropagation(); toggleFileLock(${wsId}, '${file.id}')" 
+                        class="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 flex items-center gap-2">
+                        <i data-lucide="${file.locked ? 'unlock' : 'lock'}" class="w-3 h-3"></i> ${file.locked ? 'Destrancar' : 'Trancar'}
+                    </button>
+                    <div class="h-px bg-zinc-800 my-0.5"></div>
+                    <button onclick="event.stopPropagation(); triggerDeleteFile(${wsId}, '${file.id}')" 
+                        class="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-red-900/20 flex items-center gap-2">
+                        <i data-lucide="trash-2" class="w-3 h-3"></i> Excluir
+                    </button>
+                </div>
             </div>
         `;
 
@@ -506,6 +520,81 @@ async function openFile(wsId, file) {
     }
 }
 
+
+
+function toggleFileMenu(wsId, fileId) {
+    // Close other menus
+    document.querySelectorAll('.file-menu-dropdown').forEach(el => {
+        if (el.id !== `file-menu-${fileId}`) el.classList.add('hidden');
+    });
+
+    const menu = document.getElementById(`file-menu-${fileId}`);
+    if (menu) {
+        menu.classList.toggle('hidden');
+        if (!menu.classList.contains('hidden')) {
+            setTimeout(() => {
+                const closeHandler = (e) => {
+                    if (!menu.contains(e.target)) {
+                        menu.classList.add('hidden');
+                        document.removeEventListener('click', closeHandler);
+                    }
+                };
+                document.addEventListener('click', closeHandler);
+            }, 0);
+        }
+    }
+}
+
+async function renameFile(wsId, fileId) {
+    // Find file/note
+    const files = getWorkspaceFiles(wsId);
+    const findFile = (items) => {
+        for (const item of items) {
+            if (item.id == fileId) return item;
+            if (item.children) {
+                const found = findFile(item.children);
+                if (found) return found;
+            }
+        }
+        return null;
+    };
+    const file = findFile(files);
+    if (!file) return;
+
+    const oldName = file.name;
+    const newName = prompt('Novo nome:', oldName);
+
+    if (!newName || !newName.trim() || newName === oldName) return;
+
+    try {
+        if (file.handle) {
+            if (file.handle.move) {
+                await file.handle.move(newName);
+            } else {
+                // Fallback copy+delete
+                alert('Renomear não suportado diretamente neste navegador. Tente duplicar e excluir.');
+                return;
+            }
+        } else if (file.isVirtual && file.noteId) {
+            // Rename virtual note
+            const note = window.notes.find(n => n.id === file.noteId);
+            if (note) {
+                note.title = newName.replace(/\.(md|markdown)$/, '');
+                // Update file object name in view? renderExplorer re-fetches from getWorkspaceFiles which fetches from notes
+            }
+        }
+
+        saveData();
+        renderExplorer(wsId);
+        renderNotes();
+        showToast('Renomeado com sucesso!');
+
+    } catch (e) {
+        console.error('Rename error:', e);
+        showToast('Erro ao renomear: ' + e.message);
+    }
+}
+
 function toggleFileVisibility(wsId, fileId) {
     console.log('[Workspaces] toggleFileVisibility for:', fileId);
     const file = workspaceFiles[wsId].find(f => f.id == fileId);
@@ -604,131 +693,99 @@ async function addFileToWorkspace(wsId, handle) {
 async function addFolderToWorkspace(wsId, handle) {
     if (typeof CanvasList !== 'undefined') CanvasList.render();
     try {
-        // ... (existing code) ...
-
         // Registrar handle no FSHandler para acesso em saveCurrentNote
         FSHandler.handles[wsId] = handle;
 
-        // Salvar handle para persistência (usando wsId como chave para restauração correta)
+        // Salvar handle para persistência
         if (typeof HandleStore !== 'undefined' && HandleStore.save) {
             await HandleStore.save(String(wsId), handle, 'directory');
         }
 
-        // Ler todos os arquivos da pasta
         const files = [];
+
+        // Ler todos os arquivos da pasta
         for await (const entry of handle.values()) {
             if (entry.kind === 'file') {
-                // ... file processing ...
-            }
-            // ...
-        }
+                const file = await entry.getFile();
+                const fileId = Date.now() + Math.floor(Math.random() * 10000);
 
-        // (Simulating the loop content for brevity in replacement, but wait, replace_file_content needs EXACT match. 
-        // Since I can't easily match the whole function, I will use multi_replace or smaller chunks. 
-        // Let's use smaller chunks for each function).
+                files.push({
+                    id: fileId,
+                    name: entry.name,
+                    type: 'file',
+                    size: formatSize(file.size),
+                    status: 'visible',
+                    locked: false,
+                    handle: entry,
+                    lastModified: file.lastModified
+                });
 
-        // Wait, I can't use comments like that in ReplacementContent. 
-        // I will use multiple ReplaceFileContent calls or MultiReplaceFileContent.
-        // MultiReplace is better.
+                // Se for arquivo .md, carregar como nota
+                if (entry.name.endsWith('.md') || entry.name.endsWith('.markdown')) {
+                    try {
+                        const content = await file.text();
+                        const title = entry.name.replace(/\.(md|markdown)$/, '');
 
-    } catch (e) { }
-}
-try {
-    // Registrar handle no FSHandler para acesso em saveCurrentNote
-    FSHandler.handles[wsId] = handle;
-
-    // Salvar handle para persistência (usando wsId como chave para restauração correta)
-    if (typeof HandleStore !== 'undefined' && HandleStore.save) {
-        await HandleStore.save(String(wsId), handle, 'directory');
-    }
-
-    // Ler todos os arquivos da pasta
-    const files = [];
-    for await (const entry of handle.values()) {
-        if (entry.kind === 'file') {
-            const file = await entry.getFile();
-            const fileId = Date.now() + Math.floor(Math.random() * 10000);
-
-            files.push({
-                id: fileId,
-                name: entry.name,
-                type: 'file',
-                size: file.size,
-                status: 'visible',
-                locked: false,
-                handle: entry,
-                lastModified: file.lastModified
-            });
-
-            // Se for arquivo .md, carregar como nota com o MESMO ID do arquivo
-            if (entry.name.endsWith('.md') || entry.name.endsWith('.markdown')) {
-                try {
-                    const content = await file.text();
-                    const title = entry.name.replace(/\.(md|markdown)$/, '');
-
-                    // Verificar se nota já existe
-                    const existingNote = notes.find(n => n.title === title && n.location?.workspaceId === wsId);
-                    if (!existingNote) {
-                        notes.push({
-                            id: fileId, // SAME ID as file!
-                            title: title,
-                            content: content,
-                            category: 'Local',
-                            date: new Date().toISOString(),
-                            location: {
-                                workspaceId: wsId,
-                                folderId: fileId
-                            },
-                            fileHandle: entry
-                        });
+                        // Verificar se nota já existe
+                        const existingNote = notes.find(n => n.title === title && n.location?.workspaceId === wsId);
+                        if (!existingNote) {
+                            notes.push({
+                                id: fileId, // SAME ID as file!
+                                title: title,
+                                content: content,
+                                category: 'Local',
+                                date: new Date().toISOString(),
+                                location: {
+                                    workspaceId: wsId,
+                                    folderId: fileId
+                                },
+                                fileHandle: entry
+                            });
+                        }
+                    } catch (e) {
+                        console.warn(`[Workspace] Failed to load note ${entry.name}: `, e);
                     }
-                } catch (e) {
-                    console.warn(`[Workspace] Failed to load note ${entry.name}: `, e);
                 }
+            } else if (entry.kind === 'directory') {
+                files.push({
+                    id: Date.now() + Math.random(),
+                    name: entry.name,
+                    type: 'folder',
+                    size: '-',
+                    status: 'visible',
+                    locked: false,
+                    handle: entry
+                });
             }
-        } else if (entry.kind === 'directory') {
-            files.push({
-                id: Date.now() + Math.random(),
-                name: entry.name,
-                type: 'folder',
-                size: '-',
-                status: 'visible',
-                locked: false,
-                handle: entry
-            });
         }
+
+        // Adicionar pasta principal ao workspace
+        const newFolder = {
+            id: Date.now(),
+            name: handle.name,
+            type: 'folder',
+            size: '-',
+            status: 'visible',
+            locked: false,
+            handle: handle,
+            isMount: true,
+            children: files
+        };
+
+        workspaceFiles[wsId].push(newFolder);
+        saveData();
+        renderExplorer(wsId);
+        renderNotes();
+        if (typeof CanvasList !== 'undefined') CanvasList.render();
+
+        const fileCount = files.filter(f => f.type === 'file').length;
+        const noteCount = files.filter(f => f.name.endsWith('.md') || f.name.endsWith('.markdown')).length;
+        showToast(`Pasta "${handle.name}" vinculada! ${fileCount} arquivos, ${noteCount} notas carregadas.`);
+
+    } catch (e) {
+        console.error('[Workspace] Error adding folder:', e);
+        showToast('Erro ao adicionar pasta: ' + e.message);
     }
-
-    // Adicionar pasta principal ao workspace (com arquivos como children)
-    const newFolder = {
-        id: Date.now(),
-        name: handle.name,
-        type: 'folder',
-        size: '-',
-        status: 'visible',
-        locked: false,
-        handle: handle,
-        isMount: true,
-        children: files
-    };
-
-    workspaceFiles[wsId].push(newFolder);
-
-    // NÃO adicionar arquivos separadamente - eles já estão em children
-
-    saveData();
-    renderExplorer(wsId);
-    renderNotes();
-
-    const fileCount = files.filter(f => f.type === 'file').length;
-    const noteCount = files.filter(f => f.name.endsWith('.md') || f.name.endsWith('.markdown')).length;
-    showToast(`Pasta "${handle.name}" vinculada! ${fileCount} arquivos, ${noteCount} notas carregadas.`);
-
-    console.log(`[Workspace] Folder "${handle.name}" added with ${fileCount} files and ${noteCount} notes`);
-} catch (e) {
-    console.error('[Workspace] Error adding folder:', e);
-    showToast('Erro ao adicionar pasta: ' + e.message);
-}
 }
 
 function formatSize(bytes) {

@@ -209,18 +209,313 @@ const CanvasList = {
         const date = new Date(file.lastModified || Date.now()).toLocaleDateString('pt-BR');
         const name = file.name.replace('.board', '');
 
+        const menuId = `board-menu-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
         div.innerHTML = `
             <div class="flex-1 flex items-center justify-center bg-zinc-900/50 rounded-lg mb-4 overflow-hidden relative">
                 <i data-lucide="layout-grid" class="w-8 h-8 text-zinc-700 group-hover:text-zinc-500 transition-colors"></i>
             </div>
-            <div class="flex justify-between items-end">
-                <div>
+            <div class="flex justify-between items-end relative">
+                <div class="flex-1 min-w-0">
                     <h3 class="font-bold text-zinc-200 truncate pr-2">${name}</h3>
                     <p class="text-[10px] text-zinc-500">Editado em ${date}</p>
+                </div>
+                
+                <div class="relative">
+                    <button class="p-1 hover:bg-zinc-700 rounded-md text-zinc-400 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                        onclick="event.stopPropagation(); CanvasList.toggleBoardMenu('${menuId}')">
+                        <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                    </button>
+                    
+                    <!-- Dropdown Menu -->
+                    <div id="${menuId}" class="hidden absolute right-0 bottom-full mb-1 w-32 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                        <button onclick="event.stopPropagation(); CanvasList.handleBoardAction('rename', '${file.name}', '${window.currentWorkspaceId}')" 
+                            class="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 flex items-center gap-2">
+                            <i data-lucide="pencil" class="w-3 h-3"></i> Renomear
+                        </button>
+                        <button onclick="event.stopPropagation(); CanvasList.handleBoardAction('duplicate', '${file.name}', '${window.currentWorkspaceId}')" 
+                            class="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 flex items-center gap-2">
+                            <i data-lucide="copy" class="w-3 h-3"></i> Duplicar
+                        </button>
+                        <button onclick="event.stopPropagation(); CanvasList.handleBoardAction('move', '${file.name}', '${window.currentWorkspaceId}')" 
+                            class="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 flex items-center gap-2">
+                            <i data-lucide="folder-input" class="w-3 h-3"></i> Mover
+                        </button>
+                        <div class="h-px bg-zinc-800 my-0.5"></div>
+                        <button onclick="event.stopPropagation(); CanvasList.handleBoardAction('delete', '${file.name}', '${window.currentWorkspaceId}')" 
+                            class="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-red-900/20 flex items-center gap-2">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i> Excluir
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
         return div;
+    },
+
+    toggleBoardMenu(menuId) {
+        // Close all other menus first
+        document.querySelectorAll('[id^="board-menu-"]').forEach(el => {
+            if (el.id !== menuId) el.classList.add('hidden');
+        });
+
+        const menu = document.getElementById(menuId);
+        if (menu) {
+            menu.classList.toggle('hidden');
+
+            if (!menu.classList.contains('hidden')) {
+                // Auto-close on click outside
+                setTimeout(() => {
+                    const closeHandler = (e) => {
+                        if (!menu.contains(e.target)) {
+                            menu.classList.add('hidden');
+                            document.removeEventListener('click', closeHandler);
+                        }
+                    };
+                    document.addEventListener('click', closeHandler);
+                }, 0);
+            }
+        }
+    },
+
+    async handleBoardAction(action, fileName, wsId) {
+        // Close menus
+        document.querySelectorAll('[id^="board-menu-"]').forEach(el => el.classList.add('hidden'));
+
+        // Find file object (we might need to re-fetch if we only have name/wsId)
+        // Ideally we pass the file object or handle, but sticking to primitive params for HTML onclick
+        // We can re-find it from window.workspaceFiles or getBoardFiles
+
+        // Quick find from cache
+        let fileObj = null;
+        const findRecursively = (items) => {
+            for (const item of items) {
+                if (item.name === fileName) return item;
+                if (item.children) {
+                    const found = findRecursively(item.children);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+
+        if (window.workspaceFiles && window.workspaceFiles[wsId]) {
+            fileObj = findRecursively(window.workspaceFiles[wsId]);
+        }
+
+        if (!fileObj) {
+            // Fallback: Try to reconstruct if persistent info is enough?
+            // Actually, for delete/rename we absolutely need the handle.
+            console.error('File object not found for action:', fileName);
+            // If it's a board, maybe we can find it via getBoardFiles?
+            const updates = await this.getBoardFiles(wsId);
+            fileObj = updates.find(f => f.name === fileName);
+        }
+
+        if (!fileObj || !fileObj.handle) {
+            alert('Erro: Arquivo não acessível ou sem permissão.');
+            return;
+        }
+
+        const handle = fileObj.handle;
+
+        try {
+            switch (action) {
+                case 'rename':
+                    await this.renameBoard(handle, fileName);
+                    break;
+                case 'delete':
+                    await this.confirmDeleteBoard(handle, fileName);
+                    break;
+                case 'duplicate':
+                    await this.duplicateBoard(handle, fileName);
+                    break;
+                case 'move':
+                    await this.moveBoard(handle, fileName);
+                    break;
+            }
+        } catch (e) {
+            console.error('Action failed:', e);
+            alert(`Erro na ação ${action}: ` + e.message);
+        }
+    },
+
+    async renameBoard(handle, oldName) {
+        const newName = prompt('Novo nome do quadro:', oldName.replace('.board', ''));
+        if (!newName || !newName.trim()) return;
+
+        const finalName = newName.trim().endsWith('.board') ? newName.trim() : `${newName.trim()}.board`;
+        if (finalName === oldName) return;
+
+        // Validar permissões e renomear
+        // File System API não suporta rename direto fácil em todas as versões.
+        // O padrão é move() se suportado ou copy+delete
+
+        try {
+            if (handle.move) {
+                await handle.move(finalName);
+                showToast('Quadro renomeado!');
+                await window.refreshAllWorkspaces(); // Refresh UI
+                this.render();
+            } else {
+                // Copy + Delete fallback
+                const dirHandle = await this.getParentHandle(handle); // Hard to get parent from file handle directly without traversal
+                if (!dirHandle) {
+                    alert('Navegador não suporta renomear este arquivo (falta referência da pasta).');
+                    return;
+                }
+
+                // Copy content
+                const file = await handle.getFile();
+                const content = await file.text();
+
+                // Create new
+                const newHandle = await dirHandle.getFileHandle(finalName, { create: true });
+                await FSHandler.saveFile(newHandle, content);
+
+                // Delete old
+                await dirHandle.removeEntry(oldName);
+
+                showToast('Quadro renomeado!');
+                await window.refreshAllWorkspaces();
+                this.render();
+            }
+        } catch (e) {
+            console.error('Rename failed:', e);
+            // Fallback simplistic: alert user
+            alert('Erro ao renomear. Tente mover ou duplicar.');
+        }
+    },
+
+    async duplicateBoard(handle, name) {
+        try {
+            const file = await handle.getFile();
+            const content = await file.text();
+
+            const newName = `Cópia de ${name}`;
+
+            // Where to save? Same folder if possible.
+            // We need parent handle.
+            const dirHandle = await this.getParentHandle(handle);
+            if (!dirHandle) {
+                // Save in default location or prompt?
+                // Let's prompt "Save As" effectively
+                const newDir = await window.showDirectoryPicker({ id: 'cromva-boards', mode: 'readwrite' });
+                const newHandle = await newDir.getFileHandle(newName, { create: true });
+                await FSHandler.saveFile(newHandle, content);
+            } else {
+                const newHandle = await dirHandle.getFileHandle(newName, { create: true });
+                await FSHandler.saveFile(newHandle, content);
+            }
+
+            showToast('Quadro duplicado!');
+            await window.refreshAllWorkspaces();
+            this.render();
+        } catch (e) {
+            console.error('Duplicate failed:', e);
+            alert('Erro ao duplicar: ' + e.message);
+        }
+    },
+
+    async confirmDeleteBoard(handle, name) {
+        if (!confirm(`Tem certeza que deseja excluir "${name}"? Esta ação não pode ser desfeita.`)) return;
+
+        try {
+            const dirHandle = await this.getParentHandle(handle);
+            if (dirHandle) {
+                await dirHandle.removeEntry(name);
+                showToast('Quadro excluído!');
+                await window.refreshAllWorkspaces();
+                this.render();
+            } else {
+                // If we persist handles, maybe we can delete via handle.remove() if available?
+                if (handle.remove) { // Standard method?
+                    await handle.remove();
+                    showToast('Quadro excluído!');
+                    await window.refreshAllWorkspaces();
+                    this.render();
+                } else {
+                    alert('Não foi possível excluir (falta permissão ou pasta pai).');
+                }
+            }
+        } catch (e) {
+            console.error('Delete failed:', e);
+            alert('Erro ao excluir: ' + e.message);
+        }
+    },
+
+    async moveBoard(handle, name) {
+        try {
+            const destDir = await window.showDirectoryPicker({
+                id: 'cromva-boards',
+                mode: 'readwrite',
+                startIn: 'documents'
+            });
+
+            if (!destDir) return;
+
+            // Copy
+            const file = await handle.getFile();
+            const content = await file.text();
+
+            const newHandle = await destDir.getFileHandle(name, { create: true });
+            await FSHandler.saveFile(newHandle, content);
+
+            // Delete Old
+            const dirHandle = await this.getParentHandle(handle);
+            if (dirHandle) {
+                await dirHandle.removeEntry(name);
+            } else if (handle.remove) {
+                await handle.remove();
+            }
+
+            showToast(`Quadro movido para ${destDir.name}`);
+            await window.refreshAllWorkspaces();
+            this.render();
+
+        } catch (e) {
+            console.error('Move failed:', e);
+            alert('Erro ao mover: ' + e.message);
+        }
+    },
+
+    // Helper to find parent folder handle by traversal (expensive but necessary if `parent` property not standard)
+    async getParentHandle(fileHandle) {
+        // We check all workspace roots + default location
+        // This is tricky. 
+        // Iterate all active workspace handles
+
+        const checkDir = async (dirHandle) => {
+            for await (const entry of dirHandle.values()) {
+                if (entry.kind === 'file' && entry.name === fileHandle.name) {
+                    // Start strict equality check on handles if possible? 
+                    // Browser policies make handle equality check `await fileHandle.isSameEntry(entry)`
+                    if (await fileHandle.isSameEntry(entry)) return dirHandle;
+                } else if (entry.kind === 'directory') {
+                    const found = await checkDir(entry);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+
+        // 1. Check current workspace
+        const wsId = window.currentWorkspaceId;
+        if (wsId && FSHandler.handles[wsId]) {
+            const found = await checkDir(FSHandler.handles[wsId]);
+            if (found) return found;
+        }
+
+        // 2. Check Default Location
+        try {
+            const defHandle = await HandleStore.get('DEFAULT_BOARD_LOCATION');
+            if (defHandle && (await HandleStore.checkPermission(defHandle))) {
+                const found = await checkDir(defHandle);
+                if (found) return found;
+            }
+        } catch (e) { }
+
+        return null;
     },
 
     createNewBoard() {

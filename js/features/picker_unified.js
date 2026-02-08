@@ -167,8 +167,18 @@ const PickerUnified = {
      * Mostra UI com arquivos do workspace
      */
     async _showWorkspaceFiles(files, multiple) {
-        // Filter out folders to prevent selection of non-file items
-        const fileItems = files.filter(f => f.type !== 'folder');
+        // Flatten files (recursively find all files)
+        const fileItems = [];
+        const traverse = (items) => {
+            for (const item of items) {
+                if (item.type === 'folder') {
+                    if (item.children) traverse(item.children);
+                } else {
+                    fileItems.push(item);
+                }
+            }
+        };
+        traverse(files);
 
         return new Promise((resolve) => {
             const overlay = document.createElement('div');
