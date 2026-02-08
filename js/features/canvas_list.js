@@ -152,7 +152,31 @@ const CanvasList = {
 
         div.onclick = async () => {
             if (CanvasNavigator) {
-                // 1. Check if handle exists and is valid
+                // Check if Virtual File (Imported)
+                if (file.isVirtual && file.content) {
+                    try {
+                        const data = JSON.parse(file.content);
+                        if (typeof BoardPersistence !== 'undefined') BoardPersistence.sanitizeData(data);
+
+                        CanvasManager.canvas.loadFromJSON(data, () => {
+                            CanvasManager.canvas.renderAll();
+                            console.log('[CanvasList] Virtual board loaded.');
+                            // We need to set currentFileHandle to null or a mock so auto-save doesn't overwrite wrong file
+                            if (typeof BoardPersistence !== 'undefined') {
+                                BoardPersistence.currentFileHandle = null;
+                                // Maybe show warning that it's read-only until saved?
+                                showToast('Quadro virtual carregado (modo leitura). Salve para editar permanentemente.', 'info');
+                            }
+                        });
+                        this.hide();
+                    } catch (e) {
+                        console.error('Failed to load virtual board:', e);
+                        alert('Erro ao carregar quadro virtual.');
+                    }
+                    return;
+                }
+
+                // Normal File Handle Logic
                 if (file.handle) {
                     // Check permission on the fly? CanvasNavigator usually handles it?
                     // Let's rely on CanvasNavigator to fail or we check here.

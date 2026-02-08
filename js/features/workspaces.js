@@ -114,6 +114,11 @@ function renderWorkspaces() {
                                     class="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-zinc-800 transition-colors rounded-b-lg">
                                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Excluir
                                 </button>
+                                <div class="h-px bg-zinc-800 my-1"></div>
+                                <button onclick="event.stopPropagation(); exportWorkspace(${ws.id})" 
+                                    class="w-full flex items-center gap-2 px-3 py-2 text-xs text-blue-400 hover:bg-zinc-800 transition-colors rounded-b-lg">
+                                    <i data-lucide="download" class="w-3.5 h-3.5"></i> Exportar ZIP
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1016,3 +1021,311 @@ async function confirmDeleteAction(action) {
 
 // Expose to window explicitly
 window.confirmDeleteAction = confirmDeleteAction;
+
+// --- EXPORT / IMPORT ENGINE ---
+
+// Enhanced Export: Supports Physical Files (Recursive) + Virtual Notes (MERGED) + Deduplication
+window.exportWorkspace = async function (wsId) {
+    const ws = window.workspaces.find(w => w.id === wsId);
+    if (!ws) return;
+
+    if (typeof JSZip === 'undefined') {
+        showToast('Biblioteca de compressão não carregada. Recarregue a página.');
+        return;
+    }
+
+    const toastId = showToast(`Preparando exportação de "${ws.name}"...`, 'info', 5000);
+
+    try {
+        const zip = new JSZip();
+        // Create root folder matching workspace name
+        const rootFolder = zip.folder(ws.name);
+
+        // 1. Metadata
+        const metadata = {
+            version: '1.1',
+            type: 'cromva-workspace',
+            id: ws.id,
+            name: ws.name,
+            desc: ws.desc,
+            color: ws.color,
+            date: ws.date
+        };
+        rootFolder.file('cromva.json', JSON.stringify(metadata, null, 2));
+
+        // 2. Export Files
+        let exportedCount = 0;
+        const filesFolder = rootFolder.folder('files');
+        const usedFilenames = new Set(); // Track used names for deduplication
+
+        // Helper to get unique name
+        const getUniqueName = (originalName) => {
+            let name = originalName;
+            let counter = 1;
+            const extIndex = name.lastIndexOf('.');
+            const base = extIndex !== -1 ? name.substring(0, extIndex) : name;
+            const ext = extIndex !== -1 ? name.substring(extIndex) : '';
+
+            while (usedFilenames.has(name)) {
+                name = `${base} (${counter})${ext}`;
+                counter++;
+            }
+            usedFilenames.add(name);
+            return name;
+        };
+
+        const rootHandle = FSHandler && FSHandler.handles ? FSHandler.handles[wsId] : null;
+
+        if (rootHandle) {
+            console.log('[Export] Physical Workspace detected. Traversing handles...');
+
+            // Helper to verify permission on root if needed
+            const hasPerm = await FSHandler.checkPermission(rootHandle, 'read');
+            if (hasPerm || (await FSHandler.requestPermission(rootHandle, 'read'))) {
+                // Recursive Traversal
+                const traverseAndZip = async (dirHandle, zipFolder) => {
+                    for await (const entry of dirHandle.values()) {
+                        if (entry.kind === 'file') {
+                            // Skip system files
+                            if (entry.name === '.DS_Store' || entry.name.startsWith('._')) continue;
+
+                            try {
+                                const uniqueName = getUniqueName(entry.name);
+                                const file = await entry.getFile();
+                                zipFolder.file(uniqueName, file);
+                                exportedCount++;
+                            } catch (err) {
+                                console.warn('Failed to read file:', entry.name, err);
+                            }
+                        } else if (entry.kind === 'directory') {
+                            // Recurse
+                            // For simplicity, we are not deduplicating folder names recursively securely here, 
+                            // assuming folder structure is valid on disk.
+                            const subFolder = zipFolder.folder(entry.name);
+                            await traverseAndZip(entry, subFolder);
+                        }
+                    }
+                };
+                await traverseAndZip(rootHandle, filesFolder);
+            } else {
+                showToast('Permissão de leitura negada para arquivos físicos. Exportando apenas virtuais.', 'warning');
+            }
+        }
+
+        // 3. Export Virtual Notes (Mixed Mode support)
+        console.log('[Export] Adding Virtual Notes...');
+
+        const wsNotes = window.notes.filter(n =>
+            n.location && n.location.workspaceId === wsId && !n.fileHandle
+        );
+
+        for (const note of wsNotes) {
+            let filename = (note.title || 'Untitled') + '.md';
+
+            // Deduplicate
+            filename = getUniqueName(filename);
+
+            filesFolder.file(filename, note.content || '');
+            exportedCount++;
+        }
+
+        // 4. Generate ZIP
+        console.log(`[Export] Zipping ${exportedCount} files...`);
+        const content = await zip.generateAsync({ type: 'blob' });
+
+        // 5. Download
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(content);
+        a.download = `${ws.name}-backup.zip`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+
+        showToast(`Exportação concluída! (${exportedCount} arquivos)`);
+
+    } catch (e) {
+        console.error('Export error:', e);
+        showToast('Erro na exportação: ' + e.message, 'error');
+    }
+};
+
+window.triggerImportWorkspace = function () {
+    // Create hidden input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.zip';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            await importWorkspaceFromZip(file);
+        } catch (err) {
+            console.error(err);
+            showToast('Falha na importação: ' + err.message);
+        } finally {
+            input.remove();
+        }
+    };
+
+    input.click();
+};
+
+async function importWorkspaceFromZip(file) {
+    if (typeof JSZip === 'undefined') {
+        showToast('Biblioteca JSZip necessária.');
+        return;
+    }
+
+    showToast('Lendo arquivo de backup...', 'info');
+
+    try {
+        const zip = await JSZip.loadAsync(file);
+
+        // Find root folder (it might be inside a folder with workspace name)
+        let root = zip;
+        // Check if wrapped in folder
+        const files = Object.keys(zip.files);
+        const rootFolder = files.find(f => f.endsWith('/') && (f.match(/\//g) || []).length === 1);
+        if (rootFolder && files.every(f => f.startsWith(rootFolder))) {
+            root = zip.folder(rootFolder.slice(0, -1));
+        } else {
+            // Try to find cromva.json to locate root
+            const jsonFile = files.find(f => f.endsWith('cromva.json'));
+            if (jsonFile) {
+                const dir = jsonFile.replace('cromva.json', '');
+                if (dir) root = zip.folder(dir.slice(0, -1)); // remove trailing slash (folder() expects name?) 
+                // actually zip.folder() returns a cleaner view.
+                // zip.file(path) needs full path.
+                // Let's iterate entries instead.
+            }
+        }
+
+        // 1. Read Metadata
+        let metadata = null;
+        let metadataFile = null;
+
+        zip.forEach((path, entry) => {
+            if (path.endsWith('cromva.json')) metadataFile = entry;
+        });
+
+        if (!metadataFile) {
+            throw new Error('Arquivo metadata invalid (cromva.json missing)');
+        }
+
+        const metadataText = await metadataFile.async('text');
+        metadata = JSON.parse(metadataText);
+
+        if (metadata.type !== 'cromva-workspace') {
+            throw new Error('Arquivo inválido: não é um workspace Cromva.');
+// 3. Extract Files
+let count = 0;
+const filePromises = [];
+
+zip.forEach((relativePath, entry) => {
+    if (entry.dir) return; // Directories are handled implicitly by file paths
+    if (relativePath.endsWith('cromva.json')) return;
+    if (relativePath.includes('__MACOSX')) return; // ignore mac junk
+
+    filePromises.push(async () => {
+        const name = relativePath.split('/').pop();
+        const textContent = await entry.async('text');
+
+        // Determine if it's a note or other file
+        if (name.endsWith('.md')) {
+            // Import as Note
+            const noteId = Date.now() + Math.floor(Math.random() * 100000);
+
+            // 1. Add to window.notes (for logic/search)
+            window.notes.push({
+                id: noteId,
+                title: name.replace('.md', ''),
+                content: textContent,
+                category: 'Importado',
+                date: new Date().toISOString(),
+                location: {
+                    workspaceId: newId,
+                    folderId: null // Root
+                },
+                type: 'md'
+                // IMPORTANT: No fileHandle, so it counts as Virtual
+            });
+
+            // 2. ALSO Add to window.workspaceFiles (for Explorer visibility)
+            // This ensures it shows up in the "Physical" list if we are simulating a full restore
+            // OR we let getWorkspaceFiles pick it up as virtual.
+
+            // PROBLEM: getWorkspaceFiles puts ALL virtual notes into "LocalStorage" folder.
+            // If the user expects to see the file structure they exported, we need to respect that.
+            // But we can't create real file handles.
+
+            // SOLUTION: Add it as a "Virtual File" in workspaceFiles, similar to .board
+            // capable of holding content but marked isVirtual.
+            window.workspaceFiles[newId].push({
+                name: name,
+                type: 'file',
+                content: textContent,
+                isVirtual: true,
+                lastModified: Date.now()
+            });
+
+            count++;
+        }
+        else if (name.endsWith('.board')) {
+            // Import as Virtual File Entry
+            window.workspaceFiles[newId].push({
+                name: name,
+                type: 'file',
+                content: textContent,
+                isVirtual: true,
+                lastModified: Date.now()
+            });
+            count++;
+        }
+        else {
+            // Other files
+            window.workspaceFiles[newId].push({
+                name: name,
+                type: 'file',
+                content: textContent,
+                isVirtual: true,
+                lastModified: Date.now()
+            });
+            count++;
+        }
+    });
+});
+                }
+                else {
+                    // Unknown/Other file type
+                    // Store as virtual file anyway?
+                    window.workspaceFiles[newId].push({
+                        name: name,
+                        type: 'file',
+                        content: textContent,
+                        isVirtual: true,
+                        lastModified: Date.now()
+                    });
+                    count++;
+                }
+            });
+        });
+
+        await Promise.all(filePromises.map(p => p()));
+
+        // 4. Finish
+        saveData();
+        renderWorkspaces();
+        showToast(`Workspace "${newName}" importado com ${count} notas.`);
+
+        // Switch to it
+        switchWorkspace(newId);
+        closeWorkspaceManager();
+
+    } catch (e) {
+        console.error(e);
+        throw new Error('Erro ao processar ZIP: ' + e.message);
+    }
+}

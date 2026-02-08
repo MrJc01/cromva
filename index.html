@@ -14,6 +14,7 @@
         }
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
     <script src="js/libs/fabric.min.js"></script>
@@ -448,6 +449,10 @@
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-widest">Seus Workspaces</h3>
                     <div class="flex items-center gap-2">
+                        <button onclick="triggerImportWorkspace()"
+                            class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-md text-xs font-medium flex items-center gap-2 transition-all border border-zinc-700 hover:border-zinc-600">
+                            <i data-lucide="upload" class="w-3.5 h-3.5"></i> Importar
+                        </button>
                         <button onclick="createNewWorkspace()"
                             class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-xs font-semibold shadow-lg shadow-blue-900/20 flex items-center gap-2 transition-all"><i
                                 data-lucide="plus" class="w-3.5 h-3.5"></i> Novo Workspace</button>
