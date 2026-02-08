@@ -184,73 +184,101 @@
             </div>
 
             <!-- Right Sidebar (Canvas Tools & Inspector) -->
+            <!-- Toggle Button (Visible when sidebar is hidden) -->
+            <button id="btn-toggle-sidebar" onclick="toggleCanvasSidebar()"
+                class="absolute right-4 top-4 z-10 p-2 glass rounded-lg border border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all hidden">
+                <i data-lucide="panel-right-open" class="w-5 h-5"></i>
+            </button>
+
             <aside id="canvas-sidebar"
-                class="w-64 glass border-l border-zinc-800 flex flex-col z-20 transition-all duration-300">
-                <div class="p-4 border-b border-zinc-800/50 flex items-center justify-between">
-                    <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-widest">Ferramentas</h3>
+                class="w-56 glass border-l border-zinc-800 flex flex-col z-20 transition-all duration-300 absolute right-0 top-0 bottom-0 h-full">
+                <div class="px-4 py-3 border-b border-zinc-800/50 flex items-center justify-between">
+                    <h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Itens</h3>
                     <button onclick="toggleCanvasSidebar()" class="p-1 hover:bg-zinc-800 rounded text-zinc-400">
-                        <i data-lucide="panel-right-close" class="w-4 h-4"></i>
+                        <i data-lucide="panel-right-close" class="w-3.5 h-3.5"></i>
                     </button>
                 </div>
 
                 <!-- Add Items Tab -->
-                <!-- Add Items Tab -->
-                <div id="canvas-tools-panel" class="p-4 grid grid-cols-2 gap-3">
-                    <!-- Select Tool (Default) -->
-                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-pointer hover:bg-zinc-700 transition-colors border border-zinc-700 active-tool"
-                        id="tool-select" onclick="CanvasManager.setTool('select')">
-                        <i data-lucide="mouse-pointer-2" class="w-6 h-6 text-zinc-300"></i>
-                        <span class="text-[10px] text-zinc-300 font-medium">Selecionar</span>
-                    </div>
-
-                    <!-- Pan Tool -->
-                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-pointer hover:bg-zinc-700 transition-colors border border-zinc-700"
-                        id="tool-pan" onclick="CanvasManager.setTool('pan')">
-                        <i data-lucide="hand" class="w-6 h-6 text-zinc-300"></i>
-                        <span class="text-[10px] text-zinc-300 font-medium">Mover</span>
-                    </div>
-
+                <div id="canvas-tools-panel" class="p-3 grid grid-cols-2 gap-2">
                     <!-- Note -->
-                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-grab hover:bg-zinc-700 transition-colors border border-zinc-700"
+                    <div class="draggable-item bg-zinc-800 p-2 rounded-lg flex flex-col items-center gap-1.5 cursor-grab hover:bg-zinc-700 transition-colors border border-zinc-700"
                         draggable="true" data-type="note" onclick="CanvasUI.addObject('note')">
-                        <i data-lucide="sticky-note" class="w-6 h-6 text-yellow-400"></i>
-                        <span class="text-[10px] text-zinc-300 font-medium">Nota</span>
+                        <i data-lucide="sticky-note" class="w-5 h-5 text-yellow-400"></i>
+                        <span class="text-[9px] text-zinc-300 font-medium">Nota</span>
                     </div>
 
                     <!-- Text -->
-                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-grab hover:bg-zinc-700 transition-colors border border-zinc-700"
+                    <div class="draggable-item bg-zinc-800 p-2 rounded-lg flex flex-col items-center gap-1.5 cursor-grab hover:bg-zinc-700 transition-colors border border-zinc-700"
                         draggable="true" data-type="text" onclick="CanvasUI.addObject('text')">
-                        <i data-lucide="type" class="w-6 h-6 text-zinc-400"></i>
-                        <span class="text-[10px] text-zinc-300 font-medium">Texto</span>
+                        <i data-lucide="type" class="w-5 h-5 text-zinc-400"></i>
+                        <span class="text-[9px] text-zinc-300 font-medium">Texto</span>
                     </div>
 
                     <!-- Image -->
-                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-grab hover:bg-zinc-700 transition-colors border border-zinc-700"
+                    <div class="draggable-item bg-zinc-800 p-2 rounded-lg flex flex-col items-center gap-1.5 cursor-grab hover:bg-zinc-700 transition-colors border border-zinc-700"
                         draggable="true" data-type="image" onclick="CanvasUI.addObject('image')">
-                        <i data-lucide="image" class="w-6 h-6 text-blue-400"></i>
-                        <span class="text-[10px] text-zinc-300 font-medium">Imagem</span>
+                        <i data-lucide="image" class="w-5 h-5 text-blue-400"></i>
+                        <span class="text-[9px] text-zinc-300 font-medium">Imagem</span>
                     </div>
 
                     <!-- Draw -->
-                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-pointer hover:bg-zinc-700 transition-colors border border-zinc-700"
+                    <div class="draggable-item bg-zinc-800 p-2 rounded-lg flex flex-col items-center gap-1.5 cursor-pointer hover:bg-zinc-700 transition-colors border border-zinc-700"
                         id="tool-draw" onclick="CanvasManager.setTool('draw')">
-                        <i data-lucide="pencil" class="w-6 h-6 text-emerald-400"></i>
-                        <span class="text-[10px] text-zinc-300 font-medium">Desenhar</span>
+                        <i data-lucide="pencil" class="w-5 h-5 text-emerald-400"></i>
+                        <span class="text-[9px] text-zinc-300 font-medium">Desenhar</span>
                     </div>
 
                     <!-- Reference -->
-                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-pointer hover:bg-zinc-700 transition-colors border border-zinc-700"
+                    <div class="draggable-item bg-zinc-800 p-2 rounded-lg flex flex-col items-center gap-1.5 cursor-pointer hover:bg-zinc-700 transition-colors border border-zinc-700"
                         draggable="true" id="tool-reference" onclick="CanvasUI.addReference(100, 100)">
-                        <!-- Fixed pos for click, draggable for drop? -->
-                        <i data-lucide="link" class="w-6 h-6 text-purple-400"></i>
-                        <span class="text-[10px] text-zinc-300 font-medium">Link</span>
+                        <i data-lucide="link" class="w-5 h-5 text-purple-400"></i>
+                        <span class="text-[9px] text-zinc-300 font-medium">Link</span>
                     </div>
 
-                    <!-- Shape (Square for now) -->
-                    <div class="draggable-item bg-zinc-800 p-3 rounded-lg flex flex-col items-center gap-2 cursor-grab hover:bg-zinc-700 transition-colors border border-zinc-700"
-                        draggable="true" data-type="square" onclick="CanvasUI.addObject('square')">
-                        <i data-lucide="square" class="w-6 h-6 text-red-500"></i>
-                        <span class="text-[10px] text-zinc-300 font-medium">Quadrado</span>
+                    <!-- Shapes (New) -->
+                    <div class="draggable-item bg-zinc-800 p-2 rounded-lg flex flex-col items-center gap-1.5 cursor-pointer hover:bg-zinc-700 transition-colors border border-zinc-700 relative"
+                        id="tool-shapes" onclick="CanvasUI.toggleShapesMenu()">
+                        <i data-lucide="shapes" class="w-5 h-5 text-red-500"></i>
+                        <span class="text-[9px] text-zinc-300 font-medium">Formas</span>
+
+                        <!-- Shapes Dropdown -->
+                        <div id="shapes-menu"
+                            class="absolute right-full top-0 mr-2 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl p-2 grid grid-cols-2 gap-2 w-32 hidden z-50">
+                            <button onclick="event.stopPropagation(); CanvasUI.addObject('square')"
+                                class="p-2 hover:bg-zinc-800 rounded flex flex-col items-center" title="Quadrado">
+                                <i data-lucide="square" class="w-4 h-4 text-zinc-300"></i>
+                            </button>
+                            <!-- (Keep buttons short for brevity if reused, but need full block for replace) -->
+                            <button onclick="event.stopPropagation(); CanvasUI.addObject('circle')"
+                                class="p-2 hover:bg-zinc-800 rounded flex flex-col items-center" title="Círculo">
+                                <i data-lucide="circle" class="w-4 h-4 text-zinc-300"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); CanvasUI.addObject('triangle')"
+                                class="p-2 hover:bg-zinc-800 rounded flex flex-col items-center" title="Triângulo">
+                                <i data-lucide="triangle" class="w-4 h-4 text-zinc-300"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); CanvasUI.addObject('diamond')"
+                                class="p-2 hover:bg-zinc-800 rounded flex flex-col items-center" title="Losango">
+                                <i data-lucide="diamond" class="w-4 h-4 text-zinc-300"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); CanvasUI.addObject('arrow')"
+                                class="p-2 hover:bg-zinc-800 rounded flex flex-col items-center" title="Seta">
+                                <i data-lucide="move-right" class="w-4 h-4 text-zinc-300"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); CanvasUI.addObject('line')"
+                                class="p-2 hover:bg-zinc-800 rounded flex flex-col items-center" title="Linha">
+                                <i data-lucide="minus" class="w-4 h-4 text-zinc-300"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); CanvasUI.addObject('star')"
+                                class="p-2 hover:bg-zinc-800 rounded flex flex-col items-center" title="Estrela">
+                                <i data-lucide="star" class="w-4 h-4 text-zinc-300"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); CanvasUI.addObject('hexagon')"
+                                class="p-2 hover:bg-zinc-800 rounded flex flex-col items-center" title="Hexágono">
+                                <i data-lucide="hexagon" class="w-4 h-4 text-zinc-300"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -265,9 +293,25 @@
                 </div>
             </aside>
 
-            <!-- Floating Controls -->
+            <!-- Floating Controls (Merged Tools + Zoom) -->
             <div
-                class="absolute bottom-8 left-1/2 -translate-x-1/2 glass px-4 py-2 rounded-full flex gap-4 shadow-2xl border border-zinc-700 z-20 select-none">
+                class="absolute bottom-8 left-1/2 -translate-x-1/2 glass px-2 py-1.5 rounded-full flex items-center gap-2 shadow-2xl border border-zinc-700 z-20 select-none">
+                <!-- Select Tool -->
+                <button id="tool-select" onclick="CanvasManager.setTool('select')"
+                    class="p-2 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-700/50 active-tool transition-all"
+                    title="Selecionar (V)">
+                    <i data-lucide="mouse-pointer-2" class="w-4 h-4"></i>
+                </button>
+
+                <!-- Pan Tool -->
+                <button id="tool-pan" onclick="CanvasManager.setTool('pan')"
+                    class="p-2 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-all"
+                    title="Mover (H)">
+                    <i data-lucide="hand" class="w-4 h-4"></i>
+                </button>
+
+                <div class="w-px h-6 bg-zinc-700 mx-1"></div>
+
                 <button onclick="CanvasManager.adjustZoom(-0.1)"
                     class="p-2 hover:bg-zinc-700/50 rounded-full text-zinc-400 hover:text-white"><i data-lucide="minus"
                         class="w-4 h-4"></i></button>

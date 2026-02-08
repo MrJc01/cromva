@@ -85,23 +85,35 @@ const CanvasManager = {
             opt.e.stopPropagation();
         });
 
-        // Panning (Spacebar + Drag OR Middle Click)
+        // Panning (Spacebar + Drag OR Middle Click OR Right Click)
         this.canvas.on('mouse:down', function (opt) {
             const evt = opt.e;
 
-            // Middle Click or Spacebar held or Pan Mode Active
-            if (evt.button === 1 || self.isPanningMode) {
+            // Middle Click (1) or Right Click (2) or Spacebar/Pan Mode
+            if (evt.button === 1 || evt.button === 2 || self.isPanningMode) {
                 self.isPanning = true;
                 self.canvas.selection = false;
                 self.lastPosX = evt.clientX;
                 self.lastPosY = evt.clientY;
                 self.canvas.defaultCursor = 'grabbing';
+
+                // Track start for Right Click to distinguish Click vs Drag
+                if (evt.button === 2) {
+                    self.rightClickRun = { x: evt.clientX, y: evt.clientY, isDrag: false };
+                }
             }
         });
 
         this.canvas.on('mouse:move', function (opt) {
             if (self.isPanning && opt.e) {
                 const e = opt.e;
+
+                // Detect Drag Threshold for Right Click
+                if (self.rightClickRun) {
+                    const dist = Math.hypot(e.clientX - self.rightClickRun.x, e.clientY - self.rightClickRun.y);
+                    if (dist > 5) self.rightClickRun.isDrag = true;
+                }
+
                 const vpt = self.canvas.viewportTransform;
                 vpt[4] += e.clientX - self.lastPosX;
                 vpt[5] += e.clientY - self.lastPosY;
@@ -114,6 +126,16 @@ const CanvasManager = {
         this.canvas.on('mouse:up', function (opt) {
             // On mouse up we calculate the new center point
             self.isPanning = false;
+
+            // Handle Right Click: If it was a DRAG, suppress Context Menu
+            if (opt.e.button === 2 && self.rightClickRun) {
+                if (self.rightClickRun.isDrag) {
+                    // It was a pan, flag it so context menu listener knows to ignore
+                    self.wasRightClickPan = true;
+                    setTimeout(() => self.wasRightClickPan = false, 100);
+                }
+                self.rightClickRun = null;
+            }
 
             // Reset cursor if spacebar is not held (logic handled in keyboard events)
             if (self.isPanningMode) {
@@ -244,42 +266,32 @@ const CanvasManager = {
             this.canvas.selection = true;
             this.canvas.defaultCursor = 'default';
         }
+        this.canvas.discardActiveObject();
+        this.canvas.requestRenderAll();
 
         // Update UI
-        document.querySelectorAll('.draggable-item').forEach(el => {
-            el.classList.remove('active-tool', 'border-emerald-500', 'bg-emerald-500/20');
-            el.classList.add('border-zinc-700');
-        });
+        document.querySelectorAll('.active-tool').forEach(el => el.classList.remove('active-tool'));
+        const toolBtn = document.getElementById(`tool-${toolName}`);
+        if (toolBtn) toolBtn.classList.add('active-tool');
 
-        const activeBtn = document.getElementById(`tool-${toolName}`);
-        if (activeBtn) {
-            activeBtn.classList.add('active-tool', 'border-emerald-500', 'bg-emerald-500/20');
-            activeBtn.classList.remove('border-zinc-700');
+        // Config Cursor
+        if (toolName === 'pan') {
+            this.canvas.defaultCursor = 'grab';
+            this.canvas.selection = false;
+            this.isPanningMode = true;
+            this.canvas.forEachObject(o => o.selectable = false);
+        } else {
+            this.canvas.defaultCursor = 'default';
+            this.canvas.selection = true;
+            this.isPanningMode = false;
+            this.canvas.forEachObject(o => o.selectable = true);
         }
 
-        // Apply Tool Logic
-        switch (toolName) {
-            case 'pan':
-                this.isPanningMode = true;
-                this.isPermanentPanMode = true; // Sidebar tool is permanent until switched
-                if (this.canvas) {
-                    this.canvas.defaultCursor = 'grab';
-                    this.canvas.selection = false;
-                }
-                break;
-            case 'draw':
-                this.isDrawing = true;
-                if (this.canvas) {
-                    this.canvas.isDrawingMode = true;
-                    this.canvas.freeDrawingBrush = new fabric.PencilBrush(this.canvas);
-                    this.canvas.freeDrawingBrush.width = 3;
-                    this.canvas.freeDrawingBrush.color = '#ffffff';
-                }
-                break;
-            case 'select':
-            default:
-                // Default state is already set above
-                break;
+        if (toolName === 'draw') {
+            this.canvas.isDrawingMode = true;
+            // Configure brush...
+        } else {
+            this.canvas.isDrawingMode = false;
         }
 
         if (this.canvas) this.canvas.requestRenderAll();

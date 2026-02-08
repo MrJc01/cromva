@@ -21,17 +21,6 @@ const CanvasObjects = {
      * Create a Note (Text Box similar to Milanote)
      */
     createNote(text = 'Nova Nota', left = 100, top = 100, color = '#fef3c7') {
-        const group = new fabric.Group([], {
-            left: left,
-            top: top,
-            width: 200,
-            height: 200, // min height
-            subTargetCheck: true,
-            layout: 'note', // Custom property
-            lockScalingFlip: true, // Prevent flipping
-            lockUniScaling: false, // Allow non-uniform scaling
-            uniformScaling: false // Deprecated in some versions but good for safety
-        });
 
         // Background
         const rect = new fabric.Rect({
@@ -56,19 +45,28 @@ const CanvasObjects = {
             fontFamily: 'Inter, sans-serif',
             fill: '#1f2937', // zinc-800
             splitByGrapheme: true,
-            lockMovementX: true, // Prevents text from being moved independently
+            lockMovementX: true,
             lockMovementY: true,
             originX: 'left',
             originY: 'top',
             textBaseline: 'alphabetic'
         });
 
-        group.addWithUpdate(rect);
-        group.addWithUpdate(textBox);
+        const group = new fabric.Group([rect, textBox], {
+            left: left,
+            top: top,
+            width: 200,
+            height: 200,
+            subTargetCheck: true,
+            layout: 'note',
+            lockScalingFlip: true,
+            lockUniScaling: false,
+            uniformScaling: false
+        });
 
         // Store reference to type
         group.set('customType', 'note');
-        group.set('content', text);
+        // group.set('content', text); // moved to setter if needed, or just keep pure
 
         return group;
     },
@@ -116,7 +114,7 @@ const CanvasObjects = {
             top: y,
             width: 100,
             height: 100,
-            fill: '#ef4444', // Red-500
+            fill: '#ef4444',
             rx: 10,
             ry: 10,
             stroke: '#b91c1c',
@@ -127,6 +125,124 @@ const CanvasObjects = {
 
         this.addCommonProps(rect, 'shape');
         return rect;
+    },
+
+    createCircle(x, y) {
+        const circle = new fabric.Circle({
+            left: x,
+            top: y,
+            radius: 50,
+            fill: '#3b82f6', // blue-500
+            stroke: '#1d4ed8',
+            strokeWidth: 2
+        });
+        this.addCommonProps(circle, 'shape');
+        return circle;
+    },
+
+    createTriangle(x, y) {
+        const triangle = new fabric.Triangle({
+            left: x,
+            top: y,
+            width: 100,
+            height: 100,
+            fill: '#10b981', // emerald-500
+            stroke: '#047857',
+            strokeWidth: 2
+        });
+        this.addCommonProps(triangle, 'shape');
+        return triangle;
+    },
+
+    createDiamond(x, y) {
+        // Rotated square or polygon
+        const rect = new fabric.Rect({
+            left: x,
+            top: y,
+            width: 70,
+            height: 70,
+            fill: '#f59e0b', // amber-500
+            stroke: '#b45309',
+            strokeWidth: 2,
+            angle: 45
+        });
+        this.addCommonProps(rect, 'shape');
+        return rect;
+    },
+
+    createLine(x, y) {
+        const line = new fabric.Line([x, y, x + 100, y], {
+            stroke: '#71717a', // zinc-500
+            strokeWidth: 4,
+            strokeLineCap: 'round'
+        });
+        this.addCommonProps(line, 'shape');
+        line.set('customType', 'line'); // Override to avoid confusing with generic shape
+        return line;
+    },
+
+    createArrow(x, y) {
+        // Simple path arrow
+        const arrow = new fabric.Path('M 0 0 L 100 0 L 90 -10 M 100 0 L 90 10', {
+            left: x,
+            top: y,
+            stroke: '#a855f7', // purple-500
+            strokeWidth: 4,
+            fill: null,
+            strokeLineCap: 'round',
+            strokeLineJoin: 'round'
+        });
+        this.addCommonProps(arrow, 'shape');
+        return arrow;
+    },
+
+    createStar(x, y) {
+        // 5 points star
+        // Points for a star... let's approximate or find standard points
+        // Outer radius 50, inner 25
+        const points = [
+            { x: 50, y: 0 },
+            { x: 61, y: 35 },
+            { x: 98, y: 35 },
+            { x: 68, y: 57 },
+            { x: 79, y: 91 },
+            { x: 50, y: 70 },
+            { x: 21, y: 91 },
+            { x: 32, y: 57 },
+            { x: 2, y: 35 },
+            { x: 39, y: 35 }
+        ];
+
+        // Normalize center? Fabric polygon handles origin.
+        const star = new fabric.Polygon(points, {
+            left: x,
+            top: y,
+            fill: '#ec4899', // pink-500
+            stroke: '#be185d',
+            strokeWidth: 2
+        });
+        this.addCommonProps(star, 'shape');
+        return star;
+    },
+
+    createHexagon(x, y) {
+        const points = [
+            { x: 25, y: 0 },
+            { x: 75, y: 0 },
+            { x: 100, y: 43 },
+            { x: 75, y: 86 },
+            { x: 25, y: 86 },
+            { x: 0, y: 43 }
+        ];
+        const hex = new fabric.Polygon(points, {
+            left: x,
+            top: y,
+            fill: '#06b6d4', // cyan-500
+            stroke: '#0e7490',
+            strokeWidth: 2
+        });
+        this.addCommonProps(hex, 'shape');
+        return hex;
     },
 
     /**

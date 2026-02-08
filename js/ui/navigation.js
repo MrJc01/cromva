@@ -45,6 +45,11 @@ function toggleSidebar() {
     if (document.getElementById('view-graph').classList.contains('active')) {
         setTimeout(initGraph, 300); // 300ms matches transition duration
     }
+
+    // Force Canvas Resize
+    if (typeof CanvasManager !== 'undefined' && CanvasManager.canvas) {
+        setTimeout(() => CanvasManager.resizeCanvas(), 305);
+    }
 }
 
 function toggleFullscreen() {

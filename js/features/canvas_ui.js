@@ -159,7 +159,12 @@ const CanvasUI = {
         // Native context menu override
         const canvasWrapper = document.getElementById('canvas-wrapper');
         if (canvasWrapper) {
-            canvasWrapper.addEventListener('contextmenu', (e) => this.showContextMenu(e));
+            canvasWrapper.addEventListener('contextmenu', (e) => {
+                // If it was a pan, ignore
+                if (CanvasManager.wasRightClickPan) return;
+
+                this.showContextMenu(e);
+            });
         }
 
         // Global click to hide context menu
@@ -168,12 +173,10 @@ const CanvasUI = {
             if (menu) menu.classList.add('hidden');
         });
 
-        // Disable default context menu on canvas
+        // Disable default context menu on canvas (Fabric layer)
         if (CanvasManager.canvas) {
             CanvasManager.canvas.on('mouse:down', (e) => {
-                if (e.button === 3) {
-                    // handled by native listener on wrapper usually
-                }
+                // Fabric catches some right clicks, ensure we don't double fire
             });
         }
     },
@@ -228,8 +231,24 @@ const CanvasUI = {
     showContextMenu(e) {
         e.preventDefault();
         const menu = document.getElementById('canvas-context-menu');
+        if (!menu) return;
+
+        // Determine Canvas Coordinates for the click
+        // We calculate this MANUALLY because 'activeObj' might be null (empty space click)
+        const wrapper = document.getElementById('canvas-wrapper');
+        const rect = wrapper.getBoundingClientRect();
+        const pixelX = e.clientX - rect.left;
+        const pixelY = e.clientY - rect.top;
+
+        const vpt = CanvasManager.canvas.viewportTransform;
+        const sceneX = (pixelX - vpt[4]) / vpt[0];
+        const sceneY = (pixelY - vpt[5]) / vpt[3];
+
+        // Store for use in "Add" actions
+        this.lastContextCoords = { x: sceneX, y: sceneY };
+
         const canvas = CanvasManager.canvas;
-        const pointer = canvas.getPointer(e);
+        const pointer = canvas.getPointer(e); // Keep for legacy fallback
         const activeObj = canvas.findTarget(e, false);
 
         menu.style.left = `${e.clientX}px`;
@@ -347,17 +366,16 @@ const CanvasUI = {
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
 
-            // Calculate Drop Position in Canvas Config
-            // wrapper offset
+            // Calculate Drop Position relative to canvas element
             const rect = dropZone.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
 
-            // Transform to Canvas Coordinates
+            // Transform to Canvas Coordinates using Fabric's viewport transform
             const pointer = CanvasManager.canvas.restorePointerVpt({ x, y });
 
             // 1. Check for Dragged Toolbar Item
-            const type = e.dataTransfer.getData('type'); // Set in dragstart
+            const type = e.dataTransfer.getData('type');
             if (type) {
                 this.addObject(type, pointer.x, pointer.y);
                 return;
@@ -377,13 +395,36 @@ const CanvasUI = {
         });
     },
 
+    toggleShapesMenu() {
+        const menu = document.getElementById('shapes-menu');
+        const btn = document.getElementById('tool-shapes');
+        if (menu) {
+            menu.classList.toggle('hidden');
+            if (menu.classList.contains('hidden')) {
+                btn.classList.remove('bg-zinc-700');
+            } else {
+                btn.classList.add('bg-zinc-700');
+                // Close when clicking outside
+                const closeMenu = (e) => {
+                    if (!btn.contains(e.target)) {
+                        menu.classList.add('hidden');
+                        btn.classList.remove('bg-zinc-700');
+                        document.removeEventListener('click', closeMenu);
+                    }
+                };
+                // Delay to avoid immediate close
+                setTimeout(() => document.addEventListener('click', closeMenu), 0);
+            }
+        }
+    },
+
     async addObject(type, x, y, content = null) {
-        // If coords missing, use Viewport Center
-        if (x === undefined || y === undefined) {
+        // If coords missing or invalid, use Viewport Center
+        if (x === undefined || y === undefined || isNaN(x) || isNaN(y)) {
             if (CanvasManager && CanvasManager.canvas) {
                 const center = CanvasManager.canvas.getVpCenter();
-                x = center.x - 100; // Offset to center object approx
-                y = center.y - 100;
+                x = center.x - 50;
+                y = center.y - 50;
             } else {
                 x = 100;
                 y = 100;
@@ -396,26 +437,44 @@ const CanvasUI = {
         } else if (type === 'text') {
             obj = CanvasObjects.createText('Texto', x, y);
         } else if (type === 'image') {
-            // ... (rest same) -> NO, need to copy logic
             if (content) {
-                // ...
+                // Already loaded image logic
             } else {
                 this.handleImageUploadFromButton(x, y);
                 return;
             }
         } else if (type === 'square') {
             obj = CanvasObjects.createSquare(x, y);
+        } else if (type === 'circle') {
+            obj = CanvasObjects.createCircle(x, y);
+        } else if (type === 'triangle') {
+            obj = CanvasObjects.createTriangle(x, y);
+        } else if (type === 'diamond') {
+            obj = CanvasObjects.createDiamond(x, y);
+        } else if (type === 'arrow') {
+            obj = CanvasObjects.createArrow(x, y);
+        } else if (type === 'line') {
+            obj = CanvasObjects.createLine(x, y);
+        } else if (type === 'star') {
+            obj = CanvasObjects.createStar(x, y);
+        } else if (type === 'hexagon') {
+            obj = CanvasObjects.createHexagon(x, y);
         }
 
         if (obj) {
             CanvasManager.canvas.add(obj);
             CanvasManager.canvas.setActiveObject(obj);
             CanvasManager.canvas.renderAll();
-
             if (typeof BoardPersistence !== 'undefined') BoardPersistence.autoSave();
+
+            // Hide menu if open
+            const menu = document.getElementById('shapes-menu');
+            if (menu && !menu.classList.contains('hidden')) {
+                menu.classList.add('hidden');
+                document.getElementById('tool-shapes')?.classList.remove('bg-zinc-700');
+            }
         }
     },
-
     async handleFileUpload(file, x, y) {
         if (file.type.startsWith('image/')) {
             const reader = new FileReader();
@@ -499,24 +558,99 @@ const CanvasUI = {
             const currentColor = rect.fill;
 
             this.addLabel(content, 'Cor de Fundo');
-            const colors = ['#fef3c7', '#dbeafe', '#d1fae5', '#fce7f3', '#f4f4f5'];
-            const palette = document.createElement('div');
-            palette.className = 'flex gap-2';
 
-            colors.forEach(c => {
-                const dot = document.createElement('div');
-                dot.className = `w-6 h-6 rounded-full cursor-pointer border border-zinc-600 ${c === currentColor ? 'ring-2 ring-white' : ''}`;
-                dot.style.backgroundColor = c;
-                dot.onclick = () => {
-                    rect.set('fill', c);
-                    CanvasManager.canvas.requestRenderAll();
-                    if (typeof BoardPersistence !== 'undefined') BoardPersistence.autoSave();
-                    this.renderInspector(obj); // Re-render to update ring
-                };
-                palette.appendChild(dot);
-            });
-            content.appendChild(palette);
+            const colorContainer = document.createElement('div');
+            colorContainer.className = 'flex items-center gap-2';
+
+            const colorInput = document.createElement('input');
+            colorInput.type = 'color';
+            colorInput.value = currentColor;
+            colorInput.className = 'w-10 h-10 p-0 border-0 rounded cursor-pointer bg-transparent';
+            colorInput.oninput = (e) => {
+                rect.set('fill', e.target.value);
+                CanvasManager.canvas.requestRenderAll();
+            };
+            colorInput.onchange = (e) => {
+                if (typeof BoardPersistence !== 'undefined') BoardPersistence.autoSave();
+            }
+
+            const hexLabel = document.createElement('span');
+            hexLabel.innerText = currentColor;
+            hexLabel.className = 'text-xs text-zinc-400 font-mono';
+
+            colorContainer.appendChild(colorInput);
+            colorContainer.appendChild(hexLabel);
+            content.appendChild(colorContainer);
         }
+
+        // --- NEW: Inspector for Shapes ---
+        if (obj.customType === 'shape' || obj.customType === 'line' || obj.type === 'rect' || obj.type === 'circle' || obj.type === 'triangle' || obj.type === 'polygon' || obj.type === 'path') {
+            this.addLabel(content, 'Aparência');
+
+            // Color Picker (Fill) - Only if not a Line (Line uses stroke)
+            if (obj.customType !== 'line') {
+                const colorContainer = document.createElement('div');
+                colorContainer.className = 'flex items-center gap-2 mb-2';
+                const label = document.createElement('span');
+                label.className = 'text-xs text-zinc-400 w-12';
+                label.innerText = 'Cor';
+
+                const colorInput = document.createElement('input');
+                colorInput.type = 'color';
+                colorInput.value = obj.fill || '#000000';
+                colorInput.className = 'w-8 h-8 p-0 border-0 rounded cursor-pointer bg-transparent';
+                colorInput.oninput = (e) => {
+                    obj.set('fill', e.target.value);
+                    CanvasManager.canvas.requestRenderAll();
+                };
+                colorInput.onchange = () => {
+                    if (typeof BoardPersistence !== 'undefined') BoardPersistence.autoSave();
+                };
+                colorContainer.appendChild(label);
+                colorContainer.appendChild(colorInput);
+                content.appendChild(colorContainer);
+            }
+
+            // Stroke Color
+            const strokeContainer = document.createElement('div');
+            strokeContainer.className = 'flex items-center gap-2 mb-2';
+            const sLabel = document.createElement('span');
+            sLabel.className = 'text-xs text-zinc-400 w-12';
+            sLabel.innerText = 'Borda';
+
+            const strokeInput = document.createElement('input');
+            strokeInput.type = 'color';
+            strokeInput.value = obj.stroke || '#000000';
+            strokeInput.className = 'w-8 h-8 p-0 border-0 rounded cursor-pointer bg-transparent';
+            strokeInput.oninput = (e) => {
+                obj.set('stroke', e.target.value);
+                CanvasManager.canvas.requestRenderAll();
+            };
+            strokeInput.onchange = () => {
+                if (typeof BoardPersistence !== 'undefined') BoardPersistence.autoSave();
+            };
+            strokeContainer.appendChild(sLabel);
+            strokeContainer.appendChild(strokeInput);
+            content.appendChild(strokeContainer);
+
+            // Stroke Width
+            this.addLabel(content, 'Espessura da Borda');
+            const widthInput = document.createElement('input');
+            widthInput.type = 'range';
+            widthInput.min = 0;
+            widthInput.max = 20;
+            widthInput.value = obj.strokeWidth || 1;
+            widthInput.className = 'w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer';
+            widthInput.oninput = (e) => {
+                obj.set('strokeWidth', parseInt(e.target.value));
+                CanvasManager.canvas.requestRenderAll();
+            };
+            widthInput.onchange = () => {
+                if (typeof BoardPersistence !== 'undefined') BoardPersistence.autoSave();
+            };
+            content.appendChild(widthInput);
+        }
+
 
         if (obj.type === 'i-text' || obj.type === 'textbox' || (obj.customType === 'note' && obj.getObjects)) {
             // Font Size
@@ -560,10 +694,19 @@ const CanvasUI = {
 // Toggle Sidebar function called from HTML
 window.toggleCanvasSidebar = function () {
     const sidebar = document.getElementById('canvas-sidebar');
+    const toggleBtn = document.getElementById('btn-toggle-sidebar');
+
     sidebar.classList.toggle('w-0');
     sidebar.classList.toggle('overflow-hidden');
     sidebar.classList.toggle('p-0');
     sidebar.classList.toggle('border-none');
+
+    // Toggle the external button
+    if (sidebar.classList.contains('w-0')) {
+        toggleBtn.classList.remove('hidden');
+    } else {
+        toggleBtn.classList.add('hidden');
+    }
 };
 
 window.CanvasUI = CanvasUI;
