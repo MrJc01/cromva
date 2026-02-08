@@ -26,6 +26,10 @@ function switchView(viewId) {
             setTimeout(() => CanvasManager.resizeCanvas(), 50);
         }
     }
+
+    if (viewId === 'visuals') {
+        if (window.Analytics) window.Analytics.update();
+    }
 }
 
 // --- SIDEBAR TOGGLE ---

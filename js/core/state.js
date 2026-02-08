@@ -17,6 +17,7 @@ function saveData() {
     };
     console.log('[State] Saving data to localStorage...', data.workspaces.length, 'workspaces');
     localStorage.setItem('cromvaData', JSON.stringify(data));
+    if (window.Analytics) window.Analytics.update();
 }
 
 function loadData() {
