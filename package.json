@@ -25,7 +25,8 @@
     "@playwright/test": "^1.40.0",
     "@tauri-apps/cli": "^2.10.0",
     "http-server": "^14.1.1",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vite-plugin-static-copy": "^3.2.0"
   },
   "dependencies": {
     "@tauri-apps/plugin-dialog": "^2.6.0",
