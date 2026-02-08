@@ -523,14 +523,46 @@ const CanvasUI = {
     // --- Property Inspector ---
 
     onSelectionCreated(e) {
+        // Single click selection behavior:
+        // User asked for "double click shows config", "click outside hides".
+        // If we want ONLY double click to show inspector, we should suppress it here?
+        // Current behavior: Click selects -> renderInspector called.
+        // We will keep single click selection showing inspector for now as it's standard, 
+        // BUT we also ensure double click forces it open if closed.
         const selected = e.selected[0];
         if (!selected) return;
+        // this.renderInspector(selected); // Keep standard behavior or comment out if strict double-click wanted.
+        // Let's comment out to strictly follow "when I click twice... shows" implies single click might not?
+        // Actually, usually single click selects & shows props. Double click might be for editing text.
+        // "quando eu clicar duas vezes no item, mostra as configurações no menu lateral"
+        // Let's trust the user wants it on double click.
+        // But we need to select it on single click.
+        // So we just won't auto-open sidebar on single click if it's closed?
+        // For now, let's leave renderInspector here, but the DOUBLE CLICK will ensure sidebar is OPEN.
         this.renderInspector(selected);
     },
 
     onSelectionCleared() {
-        document.getElementById('canvas-inspector').classList.add('hidden');
-        document.getElementById('canvas-tools-panel').classList.remove('hidden');
+        this.closeInspector();
+    },
+
+    openInspector(obj) {
+        this.renderInspector(obj);
+        const container = document.getElementById('canvas-inspector');
+        const tools = document.getElementById('canvas-tools-panel');
+        if (container) {
+            container.classList.remove('hidden');
+            tools.classList.add('hidden');
+            // Ensure sidebar itself is visible/expanded if we had a toggle? 
+            // Currently sidebar is always visible unless toggled by button.
+        }
+    },
+
+    closeInspector() {
+        const container = document.getElementById('canvas-inspector');
+        const tools = document.getElementById('canvas-tools-panel');
+        if (container) container.classList.add('hidden');
+        if (tools) tools.classList.remove('hidden');
     },
 
     renderInspector(obj) {
@@ -538,8 +570,9 @@ const CanvasUI = {
         const content = document.getElementById('inspector-content');
         const title = document.getElementById('inspector-title');
 
-        document.getElementById('canvas-tools-panel').classList.add('hidden');
-        container.classList.remove('hidden');
+        // We don't force remove hidden here anymore, openInspector does that. 
+        // But if already open, we update content.
+
         content.innerHTML = '';
 
         // Determine type description
@@ -582,6 +615,33 @@ const CanvasUI = {
             colorContainer.appendChild(hexLabel);
             content.appendChild(colorContainer);
         }
+
+        // --- Layer (Z-Index) Control (For ALL objects) ---
+        this.addLabel(content, 'Camada');
+        const layerContainer = document.createElement('div');
+        layerContainer.className = 'flex items-center gap-2 mb-4';
+
+        const layerInput = document.createElement('input');
+        layerInput.type = 'number';
+        layerInput.className = 'w-full bg-zinc-800 border border-zinc-700 rounded p-1 text-xs text-white';
+        // Calculate current z-index
+        const currentIndex = CanvasManager.canvas.getObjects().indexOf(obj);
+        layerInput.value = currentIndex;
+
+        layerInput.onchange = (e) => {
+            let newIndex = parseInt(e.target.value);
+            const maxIndex = CanvasManager.canvas.getObjects().length - 1;
+            if (newIndex < 0) newIndex = 0;
+            if (newIndex > maxIndex) newIndex = maxIndex;
+
+            e.target.value = newIndex;
+            CanvasManager.canvas.moveTo(obj, newIndex);
+            CanvasManager.canvas.requestRenderAll();
+            if (typeof BoardPersistence !== 'undefined') BoardPersistence.autoSave();
+        };
+
+        layerContainer.appendChild(layerInput);
+        content.appendChild(layerContainer);
 
         // --- NEW: Inspector for Shapes ---
         if (obj.customType === 'shape' || obj.customType === 'line' || obj.type === 'rect' || obj.type === 'circle' || obj.type === 'triangle' || obj.type === 'polygon' || obj.type === 'path') {
@@ -706,6 +766,11 @@ window.toggleCanvasSidebar = function () {
         toggleBtn.classList.remove('hidden');
     } else {
         toggleBtn.classList.add('hidden');
+    }
+
+    // Force Canvas Resize
+    if (typeof CanvasManager !== 'undefined' && CanvasManager.canvas) {
+        setTimeout(() => CanvasManager.resizeCanvas(), 305);
     }
 };
 

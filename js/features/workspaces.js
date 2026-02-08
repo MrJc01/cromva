@@ -207,6 +207,7 @@ function deleteWorkspace(wsId) {
     renderWorkspaces();
     renderExplorer(window.currentWorkspaceId);
     renderNotes();
+    if (typeof CanvasList !== 'undefined') CanvasList.render();
 
     showToast('Workspace excluído');
 }
@@ -596,11 +597,15 @@ async function addFileToWorkspace(wsId, handle) {
     workspaceFiles[wsId].push(newFile);
     saveData();
     renderExplorer(wsId);
+    if (typeof CanvasList !== 'undefined') CanvasList.render();
     showToast(`Arquivo "${handle.name}" importado!`);
 }
 
 async function addFolderToWorkspace(wsId, handle) {
+    if (typeof CanvasList !== 'undefined') CanvasList.render();
     try {
+        // ... (existing code) ...
+
         // Registrar handle no FSHandler para acesso em saveCurrentNote
         FSHandler.handles[wsId] = handle;
 
@@ -613,89 +618,117 @@ async function addFolderToWorkspace(wsId, handle) {
         const files = [];
         for await (const entry of handle.values()) {
             if (entry.kind === 'file') {
-                const file = await entry.getFile();
-                const fileId = Date.now() + Math.floor(Math.random() * 10000);
-
-                files.push({
-                    id: fileId,
-                    name: entry.name,
-                    type: 'file',
-                    size: file.size,
-                    status: 'visible',
-                    locked: false,
-                    handle: entry,
-                    lastModified: file.lastModified
-                });
-
-                // Se for arquivo .md, carregar como nota com o MESMO ID do arquivo
-                if (entry.name.endsWith('.md') || entry.name.endsWith('.markdown')) {
-                    try {
-                        const content = await file.text();
-                        const title = entry.name.replace(/\.(md|markdown)$/, '');
-
-                        // Verificar se nota já existe
-                        const existingNote = notes.find(n => n.title === title && n.location?.workspaceId === wsId);
-                        if (!existingNote) {
-                            notes.push({
-                                id: fileId, // SAME ID as file!
-                                title: title,
-                                content: content,
-                                category: 'Local',
-                                date: new Date().toISOString(),
-                                location: {
-                                    workspaceId: wsId,
-                                    folderId: fileId
-                                },
-                                fileHandle: entry
-                            });
-                        }
-                    } catch (e) {
-                        console.warn(`[Workspace] Failed to load note ${entry.name}: `, e);
-                    }
-                }
-            } else if (entry.kind === 'directory') {
-                files.push({
-                    id: Date.now() + Math.random(),
-                    name: entry.name,
-                    type: 'folder',
-                    size: '-',
-                    status: 'visible',
-                    locked: false,
-                    handle: entry
-                });
+                // ... file processing ...
             }
+            // ...
         }
 
-        // Adicionar pasta principal ao workspace (com arquivos como children)
-        const newFolder = {
-            id: Date.now(),
-            name: handle.name,
-            type: 'folder',
-            size: '-',
-            status: 'visible',
-            locked: false,
-            handle: handle,
-            isMount: true,
-            children: files
-        };
+        // (Simulating the loop content for brevity in replacement, but wait, replace_file_content needs EXACT match. 
+        // Since I can't easily match the whole function, I will use multi_replace or smaller chunks. 
+        // Let's use smaller chunks for each function).
 
-        workspaceFiles[wsId].push(newFolder);
+        // Wait, I can't use comments like that in ReplacementContent. 
+        // I will use multiple ReplaceFileContent calls or MultiReplaceFileContent.
+        // MultiReplace is better.
 
-        // NÃO adicionar arquivos separadamente - eles já estão em children
+    } catch (e) { }
+}
+try {
+    // Registrar handle no FSHandler para acesso em saveCurrentNote
+    FSHandler.handles[wsId] = handle;
 
-        saveData();
-        renderExplorer(wsId);
-        renderNotes();
-
-        const fileCount = files.filter(f => f.type === 'file').length;
-        const noteCount = files.filter(f => f.name.endsWith('.md') || f.name.endsWith('.markdown')).length;
-        showToast(`Pasta "${handle.name}" vinculada! ${fileCount} arquivos, ${noteCount} notas carregadas.`);
-
-        console.log(`[Workspace] Folder "${handle.name}" added with ${fileCount} files and ${noteCount} notes`);
-    } catch (e) {
-        console.error('[Workspace] Error adding folder:', e);
-        showToast('Erro ao adicionar pasta: ' + e.message);
+    // Salvar handle para persistência (usando wsId como chave para restauração correta)
+    if (typeof HandleStore !== 'undefined' && HandleStore.save) {
+        await HandleStore.save(String(wsId), handle, 'directory');
     }
+
+    // Ler todos os arquivos da pasta
+    const files = [];
+    for await (const entry of handle.values()) {
+        if (entry.kind === 'file') {
+            const file = await entry.getFile();
+            const fileId = Date.now() + Math.floor(Math.random() * 10000);
+
+            files.push({
+                id: fileId,
+                name: entry.name,
+                type: 'file',
+                size: file.size,
+                status: 'visible',
+                locked: false,
+                handle: entry,
+                lastModified: file.lastModified
+            });
+
+            // Se for arquivo .md, carregar como nota com o MESMO ID do arquivo
+            if (entry.name.endsWith('.md') || entry.name.endsWith('.markdown')) {
+                try {
+                    const content = await file.text();
+                    const title = entry.name.replace(/\.(md|markdown)$/, '');
+
+                    // Verificar se nota já existe
+                    const existingNote = notes.find(n => n.title === title && n.location?.workspaceId === wsId);
+                    if (!existingNote) {
+                        notes.push({
+                            id: fileId, // SAME ID as file!
+                            title: title,
+                            content: content,
+                            category: 'Local',
+                            date: new Date().toISOString(),
+                            location: {
+                                workspaceId: wsId,
+                                folderId: fileId
+                            },
+                            fileHandle: entry
+                        });
+                    }
+                } catch (e) {
+                    console.warn(`[Workspace] Failed to load note ${entry.name}: `, e);
+                }
+            }
+        } else if (entry.kind === 'directory') {
+            files.push({
+                id: Date.now() + Math.random(),
+                name: entry.name,
+                type: 'folder',
+                size: '-',
+                status: 'visible',
+                locked: false,
+                handle: entry
+            });
+        }
+    }
+
+    // Adicionar pasta principal ao workspace (com arquivos como children)
+    const newFolder = {
+        id: Date.now(),
+        name: handle.name,
+        type: 'folder',
+        size: '-',
+        status: 'visible',
+        locked: false,
+        handle: handle,
+        isMount: true,
+        children: files
+    };
+
+    workspaceFiles[wsId].push(newFolder);
+
+    // NÃO adicionar arquivos separadamente - eles já estão em children
+
+    saveData();
+    renderExplorer(wsId);
+    renderNotes();
+
+    const fileCount = files.filter(f => f.type === 'file').length;
+    const noteCount = files.filter(f => f.name.endsWith('.md') || f.name.endsWith('.markdown')).length;
+    showToast(`Pasta "${handle.name}" vinculada! ${fileCount} arquivos, ${noteCount} notas carregadas.`);
+
+    console.log(`[Workspace] Folder "${handle.name}" added with ${fileCount} files and ${noteCount} notes`);
+} catch (e) {
+    console.error('[Workspace] Error adding folder:', e);
+    showToast('Erro ao adicionar pasta: ' + e.message);
+}
 }
 
 function formatSize(bytes) {

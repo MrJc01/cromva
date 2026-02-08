@@ -152,6 +152,15 @@ const CanvasManager = {
             }
         });
 
+        // Double Click to Open Inspector
+        this.canvas.on('mouse:dblclick', (opt) => {
+            if (opt.target) {
+                if (CanvasUI) CanvasUI.openInspector(opt.target);
+            } else {
+                if (CanvasUI) CanvasUI.closeInspector();
+            }
+        });
+
         this.canvas.on('object:scaling', (e) => {
             const target = e.target;
             if (!target || target.customType !== 'note') return;

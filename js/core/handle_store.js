@@ -197,8 +197,8 @@ const HandleStore = {
     },
 
     /**
-     * Tenta restaurar todos os handles salvos
-     * Retorna os que ainda têm permissão
+     * Tenta restaurar todos os handles salvos do IndexedDB
+     * Retorna TODOS os handles, independente da permissão.
      */
     async restoreAll() {
         const handles = await this.list();
@@ -207,13 +207,11 @@ const HandleStore = {
         for (const record of handles) {
             const handle = await this.get(record.id);
             if (handle) {
-                const hasPermission = await this.checkPermission(handle);
-                if (hasPermission) {
-                    restored[record.id] = handle;
-                    console.log(`[HandleStore] Restored with permission: ${record.name}`);
-                } else {
-                    console.log(`[HandleStore] No permission for: ${record.name}`);
-                }
+                // permission check is just for logging/debugging now
+                const status = await this.checkPermission(handle);
+                console.log(`[HandleStore] Restoring ${record.name} (Status: ${status})`);
+
+                restored[record.id] = handle;
             }
         }
 
