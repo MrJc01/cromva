@@ -18,6 +18,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
     <script src="js/libs/fabric.min.js"></script>
+    <script src="js/ui/loader.js"></script>
     <link rel="stylesheet" href="css/index.css">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-X1R01068RK"></script>
@@ -33,6 +34,19 @@
 </head>
 
 <body class="h-screen flex text-sm">
+    <!-- LOADING SCREEN -->
+    <div id="loading-screen">
+        <div class="loader-logo">
+            <i data-lucide="box" class="text-white w-10 h-10"></i>
+        </div>
+        <div class="loader-progress">
+            <div class="loader-bar"></div>
+        </div>
+        <div id="loading-text">Inicializando...</div>
+    </div>
+
+    <div id="app-background"></div>
+    <div id="app-noise"></div>
 
     <div id="toast" class="toast">
         <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i>
@@ -87,7 +101,7 @@
     </aside>
 
     <!-- Área Principal -->
-    <main class="flex-1 flex flex-col relative overflow-hidden bg-[#09090b]">
+    <main class="flex-1 flex flex-col relative overflow-hidden">
 
         <header
             class="h-14 border-b border-zinc-800/50 flex items-center justify-between px-6 bg-zinc-900/20 backdrop-blur-sm z-10">
@@ -140,7 +154,7 @@
                         class="w-2 h-2 rounded-full bg-amber-500"></span> Design</span>
             </div>
 
-            <canvas id="graph-canvas" class="w-full h-full bg-[#09090b] cursor-crosshair"></canvas>
+            <canvas id="graph-canvas" class="w-full h-full cursor-crosshair"></canvas>
 
             <div id="graph-tooltip"
                 class="absolute hidden z-50 p-3 glass rounded-lg border-l-4 border-blue-500 shadow-2xl backdrop-blur-md max-w-xs">
@@ -155,10 +169,10 @@
 
         <!-- View 3: Infinite Canvas (Miro-like) -->
         <section id="view-canvas"
-            class="view-section h-full relative animate__animated animate__fadeIn overflow-hidden bg-[#18181b]">
+            class="view-section h-full relative animate__animated animate__fadeIn overflow-hidden">
 
             <!-- Canvas Lists (Dashboard) -->
-            <div id="canvas-dashboard" class="w-full h-full p-8 overflow-y-auto bg-[#09090b] hidden">
+            <div id="canvas-dashboard" class="w-full h-full p-8 overflow-y-auto hidden">
                 <div class="max-w-7xl mx-auto">
                     <div class="flex items-center justify-between mb-8">
                         <div>
@@ -603,6 +617,19 @@
                                     <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-zinc-400 rounded-full"></div>
                                 </div>
                             </div>
+
+                            <div class="flex items-center justify-between py-2 mt-2 border-t border-zinc-800/50 pt-4">
+                                <div>
+                                    <p class="text-sm text-zinc-300">Animações da Interface</p>
+                                    <p class="text-[10px] text-zinc-500">Transições fluidas e efeitos visuais.</p>
+                                </div>
+                                <div id="toggle-animations" onclick="toggleAnimationsSetting()"
+                                    class="w-10 h-5 bg-blue-600 rounded-full relative cursor-pointer transition-colors">
+                                    <div
+                                        class="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-all">
+                                    </div>
+                                </div>
+                            </div>
                         </section>
 
                         <section>
@@ -652,6 +679,62 @@
                     <!-- Tab: Appearance -->
                     <div id="settings-appearance"
                         class="settings-content hidden space-y-8 animate__animated animate__fadeIn">
+                        <section>
+                            <h4 class="text-sm font-bold text-zinc-200 mb-4 border-b border-zinc-800 pb-2">Wallpaper
+                                Premium</h4>
+                            <div class="space-y-4">
+                                <div>
+                                    <label
+                                        class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-1 block">Imagem
+                                        de Fundo</label>
+
+                                    <div class="flex gap-2 mb-2">
+                                        <label
+                                            class="flex-1 cursor-pointer bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg py-2 px-3 flex items-center justify-center gap-2 transition-colors">
+                                            <i data-lucide="upload" class="w-3.5 h-3.5 text-zinc-400"></i>
+                                            <span class="text-xs text-zinc-300">Carregar Imagem</span>
+                                            <input id="wallpaper-upload" type="file" accept="image/*" class="hidden">
+                                        </label>
+                                        <button id="wallpaper-reset"
+                                            onclick="window.ThemeManager.setWallpaper({url: ''}); document.getElementById('wallpaper-url').value = '';"
+                                            class="bg-zinc-800 hover:bg-red-900/30 border border-zinc-700 hover:border-red-800 text-zinc-400 hover:text-red-400 rounded-lg px-3 transition-colors"
+                                            title="Remover Wallpaper">
+                                            <i data-lucide="x" class="w-4 h-4"></i>
+                                        </button>
+                                    </div>
+
+                                    <input id="wallpaper-url" type="text" placeholder="Ou cole uma URL..."
+                                        class="w-full bg-zinc-950/50 border border-zinc-700/50 rounded-lg py-2 px-3 text-xs text-zinc-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all">
+                                    <p class="text-[10px] text-zinc-500 mt-1">Deixe vazio para usar o fundo padrão.</p>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <div class="flex justify-between items-center mb-1">
+                                            <label
+                                                class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Opacidade
+                                                (Fundo Preto)</label>
+                                            <span id="wallpaper-opacity-val"
+                                                class="text-[10px] text-zinc-400">50%</span>
+                                        </div>
+                                        <input id="wallpaper-opacity" type="range" min="0" max="1" step="0.1"
+                                            value="0.5"
+                                            class="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer">
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between items-center mb-1">
+                                            <label
+                                                class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Blur
+                                                (Desfoque)</label>
+                                            <span id="wallpaper-blur-val" class="text-[10px] text-zinc-400">10px</span>
+                                        </div>
+                                        <input id="wallpaper-blur" type="range" min="0" max="20" step="1" value="10"
+                                            class="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer">
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
                         <section>
                             <h4 class="text-sm font-bold text-zinc-200 mb-4 border-b border-zinc-800 pb-2">Tema</h4>
                             <div class="grid grid-cols-3 gap-4">

@@ -89,6 +89,12 @@ const ThemeManager = {
     },
 
     currentTheme: 'dark',
+    wallpaper: {
+        url: '',
+        opacity: 0.5,
+        blur: 10
+    },
+    animationsEnabled: true,
 
     /**
      * Inicializa o theme manager
@@ -100,10 +106,63 @@ const ThemeManager = {
             this.apply(saved);
         }
 
+        // Carregar wallpaper salvo
+        const savedWallpaper = localStorage.getItem('cromva-wallpaper');
+        if (savedWallpaper) {
+            try {
+                this.wallpaper = JSON.parse(savedWallpaper);
+                this.setWallpaper(this.wallpaper);
+            } catch (e) {
+                console.error('Erro ao carregar wallpaper:', e);
+            }
+        }
+
+        // Carregar animações
+        const savedAnim = localStorage.getItem('cromva-animations');
+        if (savedAnim !== null) {
+            this.toggleAnimations(savedAnim === 'true');
+        } else {
+            this.toggleAnimations(true); // Default on
+        }
+
         // Adicionar CSS variables base se não existir
         this.ensureBaseStyles();
 
         console.log('[ThemeManager] Initialized with theme:', this.currentTheme);
+    },
+
+    setWallpaper(config) {
+        console.log('[ThemeManager] setWallpaper called with:', config ? Object.keys(config) : 'null');
+        this.wallpaper = { ...this.wallpaper, ...config };
+
+        const root = document.documentElement;
+        if (this.wallpaper.url) {
+            console.log('[ThemeManager] Applying wallpaper URL (length):', this.wallpaper.url.length);
+            root.style.setProperty('--bg-image', `url('${this.wallpaper.url}')`);
+            root.style.setProperty('--bg-opacity', this.wallpaper.opacity);
+            root.style.setProperty('--bg-blur', `${this.wallpaper.blur}px`);
+            document.body.classList.add('has-wallpaper');
+
+            // Ensure body background doesn't cover wallpaper
+            document.body.style.backgroundColor = 'transparent';
+        } else {
+            root.style.removeProperty('--bg-image');
+            document.body.classList.remove('has-wallpaper');
+            // Restore theme background
+            document.body.style.removeProperty('background-color');
+        }
+
+        localStorage.setItem('cromva-wallpaper', JSON.stringify(this.wallpaper));
+    },
+
+    toggleAnimations(enabled) {
+        this.animationsEnabled = enabled;
+        if (enabled) {
+            document.body.classList.remove('no-animations');
+        } else {
+            document.body.classList.add('no-animations');
+        }
+        localStorage.setItem('cromva-animations', enabled);
     },
 
     /**

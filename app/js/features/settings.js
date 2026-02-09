@@ -41,6 +41,88 @@ function switchSettingsTab(tabId) {
 
     if (tabId === 'search') renderSearchSettings();
     if (tabId === 'advanced') renderAdvancedSettings();
+
+    // Auto-init specific tab logic
+    if (tabId === 'appearance' && window.ThemeManager) {
+        // Init Wallpaper Inputs
+        const wp = window.ThemeManager.wallpaper;
+        const uploadInput = document.getElementById('wallpaper-upload');
+        const urlInput = document.getElementById('wallpaper-url');
+        const opacityInput = document.getElementById('wallpaper-opacity');
+        const blurInput = document.getElementById('wallpaper-blur');
+
+        if (urlInput) {
+            urlInput.value = wp.url || '';
+            urlInput.onchange = (e) => window.ThemeManager.setWallpaper({ url: e.target.value });
+        }
+
+        if (uploadInput) {
+            uploadInput.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        console.log('[Settings] File read complete. Result length:', evt.target.result.length);
+                        window.ThemeManager.setWallpaper({ url: evt.target.result });
+                        if (urlInput) urlInput.value = '(Imagem Carregada)';
+                        showToast('Wallpaper atualizado!');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+        }
+        if (opacityInput) {
+            opacityInput.value = wp.opacity;
+            document.getElementById('wallpaper-opacity-val').innerText = Math.round(wp.opacity * 100) + '%';
+            opacityInput.oninput = (e) => {
+                window.ThemeManager.setWallpaper({ opacity: e.target.value });
+                document.getElementById('wallpaper-opacity-val').innerText = Math.round(e.target.value * 100) + '%';
+            };
+        }
+        if (blurInput) {
+            blurInput.value = wp.blur;
+            document.getElementById('wallpaper-blur-val').innerText = wp.blur + 'px';
+            blurInput.oninput = (e) => {
+                window.ThemeManager.setWallpaper({ blur: e.target.value });
+                document.getElementById('wallpaper-blur-val').innerText = e.target.value + 'px';
+            };
+        }
+    }
+
+    if (tabId === 'general' && window.ThemeManager) {
+        // Init Animations Toggle
+        const toggle = document.getElementById('toggle-animations');
+        if (toggle) {
+            const isEnabled = window.ThemeManager.animationsEnabled;
+            updateToggleState(toggle, isEnabled);
+        }
+    }
+}
+
+// Helper for toggles
+function updateToggleState(toggle, isEnabled) {
+    const knob = toggle.querySelector('div');
+    if (isEnabled) {
+        toggle.classList.remove('bg-zinc-700');
+        toggle.classList.add('bg-blue-600');
+        knob.classList.remove('left-0.5', 'bg-zinc-400');
+        knob.classList.add('right-0.5', 'bg-white');
+    } else {
+        toggle.classList.remove('bg-blue-600');
+        toggle.classList.add('bg-zinc-700');
+        knob.classList.remove('right-0.5', 'bg-white');
+        knob.classList.add('left-0.5', 'bg-zinc-400');
+    }
+}
+
+function toggleAnimationsSetting() {
+    const toggle = document.getElementById('toggle-animations');
+    if (window.ThemeManager && toggle) {
+        const newState = !window.ThemeManager.animationsEnabled;
+        window.ThemeManager.toggleAnimations(newState);
+        updateToggleState(toggle, newState);
+        showToast(newState ? 'Animações ativadas' : 'Animações desativadas');
+    }
 }
 
 function checkForUpdates() {
