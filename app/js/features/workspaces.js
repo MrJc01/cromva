@@ -85,7 +85,7 @@ function renderWorkspaces() {
         let borderClass = isSelected ? colors.border : 'border-zinc-800';
         let bgClass = isSelected ? colors.bg : 'bg-zinc-900/50';
 
-        card.className = `min-w-[280px] h-full ${bgClass} border ${borderClass} rounded-xl p-5 flex flex-col justify-between cursor-pointer hover:border-zinc-600 transition-all group relative overflow-hidden`;
+        card.className = `min-w-[280px] h-full ${bgClass} border ${borderClass} rounded-xl p-5 flex flex-col justify-between cursor-pointer hover:border-zinc-600 transition-all group relative`;
         card.onclick = (e) => {
             // Don't switch if clicking on menu
             if (e.target.closest('.ws-menu-btn') || e.target.closest('.ws-menu-dropdown')) return;
@@ -130,7 +130,7 @@ function renderWorkspaces() {
                 <i data-lucide="clock" class="w-3 h-3"></i>
                 <span>${new Date(ws.date).toLocaleDateString()}</span>
             </div>
-            ${isSelected ? '' : `<div class="absolute inset-0 bg-black/20 hidden group-hover:flex items-center justify-center backdrop-blur-[1px] transition-all pointer-events-none"><span class="bg-zinc-100 text-zinc-950 px-3 py-1 rounded-full text-xs font-bold shadow-xl">Selecionar</span></div>`}
+            ${isSelected ? '' : `<div class="absolute inset-0 bg-black/20 hidden group-hover:flex items-center justify-center backdrop-blur-[1px] transition-all pointer-events-none rounded-xl"><span class="bg-zinc-100 text-zinc-950 px-3 py-1 rounded-full text-xs font-bold shadow-xl">Selecionar</span></div>`}
         `;
         list.appendChild(card);
     });
@@ -1221,6 +1221,19 @@ async function importWorkspaceFromZip(file) {
         if (metadata.type !== 'cromva-workspace') {
             throw new Error('Arquivo inválido: não é um workspace Cromva.');
         }
+
+        // 2. Create Workspace
+        const newId = Date.now();
+        const newName = metadata.name || file.name.replace(/\.zip$/i, '');
+
+        window.workspaces.push({
+            id: newId,
+            name: newName,
+            desc: metadata.description || 'Workspace importado',
+            color: 'purple',
+            date: new Date().toISOString()
+        });
+        window.workspaceFiles[newId] = [];
         // 3. Extract Files
         let count = 0;
         const filePromises = [];
